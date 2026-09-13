@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  server:
+    name: Server (SQLite + Postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: tahweel_test
+          POSTGRES_USER: tahweel
+          POSTGRES_PASSWORD: tahweel
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tahweel"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/lint-no-comments.mjs
+      - run: pnpm --filter @tahweel/server typecheck
+      - name: Test on SQLite
+        run: pnpm --filter @tahweel/server test
+      - name: Test on Postgres
+        run: pnpm --filter @tahweel/server exec vitest run --no-file-parallelism
+        env:
+          DATABASE_URL: postgres://tahweel:tahweel@localhost:5432/tahweel_test
+      - run: pnpm --filter @tahweel/server build
+      - name: OpenAPI and Postman are up to date
+        run: |
+          pnpm --filter @tahweel/server openapi:export
+          node scripts/generate-postman.mjs
+          git diff --exit-code -- docs/openapi.json postman
+
+  ui:
+    name: Admin UI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @tahweel/ui typecheck
+      - run: pnpm --filter @tahweel/ui test
+      - run: pnpm --filter @tahweel/ui build
+
+  listener:
+    name: Android listener
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Project structure
+        run: |
+          test -f apps/listener/settings.gradle.kts
+          test -f apps/listener/app/build.gradle.kts
+          test -f apps/listener/app/src/main/AndroidManifest.xml
+          test -f apps/listener/gradle/wrapper/gradle-wrapper.properties
+          grep -q "com.tahweel.listener" apps/listener/app/build.gradle.kts
+          grep -q "gradle-9.2.1" apps/listener/gradle/wrapper/gradle-wrapper.properties
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: assembleDebug
+        continue-on-error: true
+        working-directory: apps/listener
+        run: chmod +x gradlew && ./gradlew --no-daemon assembleDebug
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: tahweel-listener-debug
+          path: apps/listener/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: ignore
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: tahweel:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

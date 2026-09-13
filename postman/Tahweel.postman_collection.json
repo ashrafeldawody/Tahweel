@@ -1,0 +1,1157 @@
+{
+  "info": {
+    "name": "Tahweel",
+    "description": "Self-hosted mobile-wallet SMS payment confirmation. Three credentials: the listener phone uses `Authorization: Bearer <INGEST_TOKEN>` on `/ingest/*`, integrators use `X-Api-Key: <API_KEY>` on `/api/v1/*`, and the dashboard exchanges `ADMIN_PASSWORD` for a JWT used as `Authorization: Bearer <token>` on `/admin/*`.\n\nGenerated from docs/openapi.json by scripts/generate-postman.mjs. Import Tahweel.postman_environment.json and fill in baseUrl, apiKey, ingestToken; run \"Exchange the admin password for a JWT\" to fill adminToken.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Liveness and database check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "description": "Liveness and database check"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Ingest (phone)",
+      "description": "Called by the Tahweel Listener Android app",
+      "item": [
+        {
+          "name": "Forward a batch of SMS from the listener phone",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ingestToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingest/sms",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ingest",
+                "sms"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "description": "Forward a batch of SMS from the listener phone\n\nIdempotent. The phone forwards every SMS; the server classifies each one (receipt or not, trusted sender, age) and tries to match receipts to pending payment intents. Duplicate fingerprints are accepted but not re-inserted.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_id\": \"sm-m526b-1a2b3c\",\n  \"messages\": [\n    {\n      \"fingerprint\": \"3b1c9d0f5e6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c\",\n      \"address\": \"e& money\",\n      \"body\": \"تم إستلام مبلغ 200.00 ج.م من رقم 01061916846 المسجل باسمABANWB N ASRAAEYL بنجاح. رصيد محفظتك الحالى 429.90 ج.م.\",\n      \"received_at\": \"2026-09-13T10:15:30.000Z\",\n      \"sim_slot\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Device heartbeat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ingestToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingest/heartbeat",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ingest",
+                "heartbeat"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "description": "Device heartbeat\n\nSent every 60 s by the listener. Missing heartbeats past the offline threshold raise a device.offline event.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_id\": \"sm-m526b-1a2b3c\",\n  \"name\": \"Samsung M52 office\",\n  \"app_version\": \"1.0.0\",\n  \"battery\": 87,\n  \"network\": \"wifi\",\n  \"pending_count\": 0,\n  \"last_sms_at\": \"2026-09-13T10:15:30.000Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Payment intents (integrator API)",
+      "description": "Create intents, poll their status, cancel them",
+      "item": [
+        {
+          "name": "Create a payment intent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/intents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "intents"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "description": "Create a payment intent\n\nTell Tahweel that you expect a wallet transfer. Matching requires sender_phone (recommended) or allow_amount_only=true (risky). If a matching receipt already arrived it is matched immediately and the response carries status=matched.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"order-1001\",\n  \"amount\": 200,\n  \"currency\": \"EGP\",\n  \"sender_phone\": \"01061916846\",\n  \"allow_amount_only\": false,\n  \"expires_in_minutes\": 120,\n  \"metadata\": {\n    \"order_id\": \"A-1001\",\n    \"customer\": \"Ahmed\"\n  },\n  \"webhook_url\": \"https://shop.example.com/webhooks/tahweel\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.environment.set(\"intentId\", pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List payment intents",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/intents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "intents"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "order-10",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            },
+            "description": "List payment intents"
+          },
+          "response": []
+        },
+        {
+          "name": "Get a payment intent by your own reference",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/intents/by-reference/:reference",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "intents",
+                "by-reference",
+                ":reference"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "reference",
+                  "value": "order-1001"
+                }
+              ]
+            },
+            "description": "Get a payment intent by your own reference"
+          },
+          "response": []
+        },
+        {
+          "name": "Get a payment intent (with the matched message, if any)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/intents/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "intents",
+                ":id"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "7c1d0f3e-4a7b-4c1e-9c6d-2f5a8b9e0d11"
+                }
+              ]
+            },
+            "description": "Get a payment intent (with the matched message, if any)"
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel a pending payment intent",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/intents/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "intents",
+                ":id"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "7c1d0f3e-4a7b-4c1e-9c6d-2f5a8b9e0d11"
+                }
+              ]
+            },
+            "description": "Cancel a pending payment intent"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin (dashboard)",
+      "description": "Used by the bundled admin UI",
+      "item": [
+        {
+          "name": "Exchange the admin password for a JWT",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "login"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "description": "Exchange the admin password for a JWT",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.environment.set(\"adminToken\", pm.response.json().token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validate the current admin token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "me"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "description": "Validate the current admin token"
+          },
+          "response": []
+        },
+        {
+          "name": "Dashboard overview counters",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/overview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "overview"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "description": "Dashboard overview counters"
+          },
+          "response": []
+        },
+        {
+          "name": "List SMS messages with parse results",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "messages"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "unmatched",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "0106",
+                  "disabled": true,
+                  "description": "Searches sender phone, name, body, address and reference"
+                },
+                {
+                  "key": "device_id",
+                  "value": "string",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            },
+            "description": "List SMS messages with parse results"
+          },
+          "response": []
+        },
+        {
+          "name": "Get one SMS message",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/messages/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "messages",
+                ":id"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "7c1d0f3e-4a7b-4c1e-9c6d-2f5a8b9e0d11"
+                }
+              ]
+            },
+            "description": "Get one SMS message"
+          },
+          "response": []
+        },
+        {
+          "name": "Manually match a message to a pending intent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/messages/:id/match",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "messages",
+                ":id",
+                "match"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "7c1d0f3e-4a7b-4c1e-9c6d-2f5a8b9e0d11"
+                }
+              ]
+            },
+            "description": "Manually match a message to a pending intent\n\nOverrides the stale / untrusted gates. Check the real wallet balance first.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"intent_id\": \"7c1d0f3e-4a7b-4c1e-9c6d-2f5a8b9e0d11\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ignore a message so it never matches",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/messages/:id/ignore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "messages",
+                ":id",
+                "ignore"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "7c1d0f3e-4a7b-4c1e-9c6d-2f5a8b9e0d11"
+                }
+              ]
+            },
+            "description": "Ignore a message so it never matches"
+          },
+          "response": []
+        },
+        {
+          "name": "Put an ignored, stale or untrusted receipt back into the matching queue",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/messages/:id/reopen",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "messages",
+                ":id",
+                "reopen"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "7c1d0f3e-4a7b-4c1e-9c6d-2f5a8b9e0d11"
+                }
+              ]
+            },
+            "description": "Put an ignored, stale or untrusted receipt back into the matching queue"
+          },
+          "response": []
+        },
+        {
+          "name": "Re-evaluate an untrusted_sender message against the current trusted list",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/messages/:id/retrust",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "messages",
+                ":id",
+                "retrust"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "7c1d0f3e-4a7b-4c1e-9c6d-2f5a8b9e0d11"
+                }
+              ]
+            },
+            "description": "Re-evaluate an untrusted_sender message against the current trusted list"
+          },
+          "response": []
+        },
+        {
+          "name": "List payment intents",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/intents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "intents"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "string",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            },
+            "description": "List payment intents"
+          },
+          "response": []
+        },
+        {
+          "name": "Create a payment intent from the dashboard",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/intents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "intents"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "description": "Create a payment intent from the dashboard",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"order-1001\",\n  \"amount\": 200,\n  \"currency\": \"EGP\",\n  \"sender_phone\": \"01061916846\",\n  \"allow_amount_only\": false,\n  \"expires_in_minutes\": 120,\n  \"metadata\": {\n    \"order_id\": \"A-1001\",\n    \"customer\": \"Ahmed\"\n  },\n  \"webhook_url\": \"https://shop.example.com/webhooks/tahweel\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel a pending intent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/intents/:id/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "intents",
+                ":id",
+                "cancel"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "7c1d0f3e-4a7b-4c1e-9c6d-2f5a8b9e0d11"
+                }
+              ]
+            },
+            "description": "Cancel a pending intent"
+          },
+          "response": []
+        },
+        {
+          "name": "List listener phones",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/devices",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "devices"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "description": "List listener phones"
+          },
+          "response": []
+        },
+        {
+          "name": "Re-run matching now",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/reconcile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "reconcile"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "description": "Re-run matching now\n\nRe-trusts messages whose sender id is now allowed, expires old intents, demotes stale receipts and matches everything unmatched."
+          },
+          "response": []
+        },
+        {
+          "name": "Read settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "settings"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "description": "Read settings"
+          },
+          "response": []
+        },
+        {
+          "name": "Update settings",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "settings"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "description": "Update settings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trusted_senders\": [\n    \"string\"\n  ],\n  \"max_age_hours\": 1,\n  \"auto_match\": false,\n  \"currency\": \"string\",\n  \"timezone\": \"string\",\n  \"intent_ttl_minutes\": 1,\n  \"offline_alert_minutes\": 5,\n  \"webhook_unmatched_receipts\": false,\n  \"email_alerts\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List webhook deliveries",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/webhooks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "webhooks"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": true
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            },
+            "description": "List webhook deliveries"
+          },
+          "response": []
+        },
+        {
+          "name": "Retry a webhook delivery now",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/webhooks/:id/redeliver",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "webhooks",
+                ":id",
+                "redeliver"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "7c1d0f3e-4a7b-4c1e-9c6d-2f5a8b9e0d11"
+                }
+              ]
+            },
+            "description": "Retry a webhook delivery now"
+          },
+          "response": []
+        },
+        {
+          "name": "Send a webhook.test event to the configured URL",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/webhooks/test",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "webhooks",
+                "test"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "description": "Send a webhook.test event to the configured URL",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Detailed health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "health"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "description": "Detailed health"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    }
+  ]
+}

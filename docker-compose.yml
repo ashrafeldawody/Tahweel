@@ -1,0 +1,27 @@
+services:
+  tahweel:
+    build: .
+    image: tahweel:local
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-sqlite:/app/data/tahweel.sqlite}
+    volumes:
+      - ./data:/app/data
+
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tahweel
+      POSTGRES_USER: tahweel
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tahweel}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:

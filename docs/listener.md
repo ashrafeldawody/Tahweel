@@ -1,0 +1,58 @@
+# Tahweel Listener (Android)
+
+The listener is a small Kotlin app (`apps/listener`) that turns a spare Android phone into a durable SMS pipe. It knows nothing about wallets or matching: it forwards **every** incoming SMS to the server and lets the server decide.
+
+## How it works
+
+| Piece | Role |
+|---|---|
+| `SmsReceiver` | `SMS_RECEIVED` broadcast (priority 999). Joins multipart messages, computes `fingerprint = sha256(address\|body\|smsc_timestamp_ms)`, stores the message in a SQLite queue and starts the service. |
+| `ForwarderService` | Foreground service (`specialUse` type, partial wake lock). Drains the queue in batches of 50 with exponential backoff (5 s → 5 min) and sends a heartbeat every 60 s. |
+| `KeepAliveWorker` | WorkManager job every 15 minutes: uploads anything pending, restarts the service if it died. Also used as an expedited fallback when Android refuses a foreground start from the background. |
+| `BootReceiver` | Restarts everything after boot / app update. |
+| `Store` | SQLite: queue, sent fingerprints (so the inbox import never re-sends), 3000-line log ring buffer, stats. |
+| `MainActivity` | Server URL, ingest token, device name; permission checklist with **Grant everything**; Start service; Import inbox (last 200, with a confirmation dialog); Test connection; live status. |
+| `DebugActivity` | Last 100 inbox messages with their upload state, **Send** any of them now and see the server's verdict (status, amount, sender), plus a free-text box to send a custom message. |
+| `LogsActivity` | Persistent log with refresh / copy / share / clear. |
+
+Protocol: `POST {server}/ingest/sms` and `POST {server}/ingest/heartbeat` with `Authorization: Bearer <INGEST_TOKEN>`; timestamps are ISO 8601 UTC. See [api.md](api.md#ingest-api-ingest).
+
+## Building
+
+Requirements: a JDK 17+ (Android Studio's bundled JBR works, including JDK 25) and the Android SDK (platform 35, build-tools). Gradle 9.2.1 / AGP 8.13.2 / Kotlin 2.2.21 are pinned by the wrapper.
+
+```powershell
+scripts\build-listener.ps1            # release APK, signed with the debug key unless keystore.properties exists
+scripts\build-listener.ps1 -Debug     # debug APK
+scripts\build-listener.ps1 -Install   # also adb install -r on the connected phone
+```
+
+```bash
+scripts/build-listener.sh [--debug] [--install]
+```
+
+Both scripts look for `JAVA_HOME`, then Android Studio's JBR; and for `ANDROID_HOME` / `ANDROID_SDK_ROOT`, then the default SDK folder. Output: `apps/listener/app/build/outputs/apk/release/tahweel-listener-<version>-release.apk`.
+
+Release signing: create `apps/listener/keystore.properties` with `storeFile`, `storePassword`, `keyAlias`, `keyPassword` (all git-ignored).
+
+## Installing and configuring
+
+1. Copy the APK to the phone and install it (allow "unknown sources" for the file manager). It cannot come from the Play Store because of the `RECEIVE_SMS` permission.
+2. Open the app, enter the server URL (`https://tahweel.example.com`), paste `INGEST_TOKEN`, set a device name, **Save**, **Test connection** (expects "Connected, server time …").
+3. **Grant everything**: SMS (receive + read), notifications, ignore battery optimisation. The fourth row opens the vendor's background settings (Samsung: Battery → Background usage limits).
+4. Samsung / One UI specifics: add the app to **Never sleeping apps**, turn **Adaptive battery** off, lock the app in Recents, disable **Auto restart** schedules.
+5. **No screen lock**, **SIM PIN off**. After a reboot Android only delivers SMS to apps before the first unlock when the phone has no credential-encrypted lock.
+6. Keep the phone on a charger with Wi-Fi and mobile data on. The notification "Tahweel listener · Listening" must stay visible.
+7. Reboot once and check the Devices page: the heartbeat should resume within a minute.
+
+## Operating
+
+- **Import inbox** uploads the last 200 messages already on the phone. Use it after downtime. The server stores them for the record but only auto-matches receipts newer than `max_age_hours`; older ones are `stale`.
+- **Debug: inbox** answers "what does the server think of this message?" without waiting for a new SMS.
+- **Logs → Share** is what to send when something looks wrong. The header contains app version, device id, server URL, queue size and the last error.
+- When the dashboard shows the phone offline: charger, network, notification still present, then Logs.
+- Rotating `INGEST_TOKEN`: change it on the server, then paste the new one in the app and Save. Queued messages are retried with the new token.
+
+## Deliberate limits
+
+No USSD, no reading of wallet-app notifications, no outgoing SMS, no root. One phone forwards one SIM's inbox (dual-SIM phones report `sim_slot` but the server does not use it).
