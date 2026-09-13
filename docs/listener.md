@@ -19,6 +19,8 @@ Protocol: `POST {server}/ingest/sms` and `POST {server}/ingest/heartbeat` with `
 
 ## Building
 
+Every tagged release ships a prebuilt `tahweel-listener-<version>-release.apk` on the [releases page](https://github.com/ashrafeldawody/tahweel/releases); building is only needed for local changes.
+
 Requirements: a JDK 17+ (Android Studio's bundled JBR works, including JDK 25) and the Android SDK (platform 35, build-tools). Gradle 9.2.1 / AGP 8.13.2 / Kotlin 2.2.21 are pinned by the wrapper.
 
 ```powershell
@@ -33,7 +35,9 @@ scripts/build-listener.sh [--debug] [--install]
 
 Both scripts look for `JAVA_HOME`, then Android Studio's JBR; and for `ANDROID_HOME` / `ANDROID_SDK_ROOT`, then the default SDK folder. Output: `apps/listener/app/build/outputs/apk/release/tahweel-listener-<version>-release.apk`.
 
-Release signing: create `apps/listener/keystore.properties` with `storeFile`, `storePassword`, `keyAlias`, `keyPassword` (all git-ignored).
+Release signing: create `apps/listener/keystore.properties` with `storeFile`, `storePassword`, `keyAlias`, `keyPassword` (all git-ignored). The release workflow writes the same file from the repository secrets `ANDROID_KEYSTORE_BASE64` (`base64 -w0 release.jks`), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`; without them the published APK carries the debug signature, and phones cannot upgrade in place across a signature change, so set the secrets before the first release you hand to users.
+
+The version comes from the `versionName` Gradle property (`./gradlew assembleRelease -PversionName=1.2.3`, which the release workflow derives from the tag) and defaults to `1.0.0`; `versionCode` is `major * 10000 + minor * 100 + patch` unless `-PversionCode` overrides it.
 
 ## Installing and configuring
 

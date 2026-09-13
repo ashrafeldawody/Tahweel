@@ -71,11 +71,11 @@ flowchart LR
 2. Edit `.env`: set three secrets (`INGEST_TOKEN`, `API_KEY`, `ADMIN_PASSWORD`) and, when your backend is ready, `WEBHOOK_URL` + `WEBHOOK_SECRET`. Generate secrets with `openssl rand -hex 32`.
 3. Start:
    ```bash
-   docker compose up -d --build
+   docker compose pull && docker compose up -d
    ```
    The server listens on `http://localhost:3000`, keeps its SQLite file in `./data/`, and applies migrations on boot. Prefer PostgreSQL? `docker compose --profile postgres up -d` and set `DATABASE_URL=postgres://tahweel:tahweel@postgres:5432/tahweel`.
 4. Open the dashboard at `http://localhost:3000/` and log in with `ADMIN_PASSWORD`. Swagger is at `/docs`, the OpenAPI JSON at `/docs-json`, health at `/health`.
-5. Build and install the listener (`scripts/build-listener.ps1` or `.sh`, see [docs/listener.md](docs/listener.md)), open it on the phone, enter your server URL and `INGEST_TOKEN`, grant everything, press **Test connection**. The phone appears under **Devices**.
+5. Install the listener APK from the [latest release](https://github.com/ashrafeldawody/tahweel/releases/latest) (or build it yourself, see [docs/listener.md](docs/listener.md)), open it on the phone, enter your server URL and `INGEST_TOKEN`, grant everything, press **Test connection**. The phone appears under **Devices**.
 6. Send yourself a 1 EGP transfer from another wallet: it shows under **Messages** as `unmatched` within a minute. Ignore it.
 7. Register a payment intent from your backend and let the customer pay:
    ```bash
@@ -161,7 +161,7 @@ node scripts/lint-no-comments.mjs           # the codebase carries no comments b
 scripts/build-listener.ps1 [-Debug] [-Install]   # or scripts/build-listener.sh
 ```
 
-CI (`.github/workflows/ci.yml`) runs the server suite on SQLite and on a PostgreSQL service container, the UI suite, the builds, the OpenAPI/Postman freshness check, a Docker build and a best-effort Android `assembleDebug`.
+CI (`.github/workflows/ci.yml`) runs the server suite on SQLite and on a PostgreSQL service container, the UI suite, the builds, the OpenAPI/Postman freshness check, a Docker build and a best-effort Android `assembleDebug`. Pushing a `v*` tag runs the same suite and then publishes the Docker image to GHCR and the listener APK to a GitHub Release (see [docs/deploy.md](docs/deploy.md#cutting-a-release)).
 
 ## License
 

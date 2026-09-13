@@ -26,13 +26,15 @@ Generate secrets: `openssl rand -hex 32`.
 
 ```bash
 cp .env.example .env    # fill the secrets
-docker compose up -d --build
+docker compose pull && docker compose up -d
 docker compose logs -f tahweel
 ```
 
+This pulls the prebuilt image `ghcr.io/ashrafeldawody/tahweel`, published by the release workflow for every tagged version. `TAHWEEL_VERSION` in `.env` pins it (`latest`, `1.2` or `1.2.3`). To build from source instead, run `docker compose up -d --build`; the local build is tagged with the same name.
+
 - Data lives in `./data` (SQLite + WAL files). Back it up by copying the folder while the container runs (SQLite WAL is safe to copy after `sqlite3 data/tahweel.sqlite ".backup backup.sqlite"`, or just stop the container first).
 - PostgreSQL instead: `docker compose --profile postgres up -d` and set `DATABASE_URL=postgres://tahweel:tahweel@postgres:5432/tahweel` in `.env`. Migrations run automatically on boot for both dialects.
-- Upgrade: `git pull && docker compose up -d --build`.
+- Upgrade: `docker compose pull && docker compose up -d` (or `git pull && docker compose up -d --build` when building from source).
 
 ## Bare Node
 
@@ -79,6 +81,18 @@ Restrict `/admin` and `/docs` to your office IP or a VPN if you like; `/ingest/*
 - **Rotation**: change `INGEST_TOKEN` / `API_KEY` / `ADMIN_PASSWORD` in `.env`, restart, update the phone and your backend.
 - **Scaling**: one process is enough for one wallet phone (a busy wallet receives a few hundred SMS a day). Multiple phones can report to the same server. Running two server processes on one PostgreSQL is safe (conditional updates lock every message and intent), but pointless.
 - **Time**: all timestamps are UTC. The dashboard renders them in the `timezone` setting.
+
+## Cutting a release
+
+Pushing a tag of the form `v1.2.3` runs `.github/workflows/release.yml`: the full CI suite, then a push of `ghcr.io/ashrafeldawody/tahweel:1.2.3`, `:1.2` and `:latest`, then a GitHub Release carrying the listener APK built with that version. A tag with a suffix (`v1.3.0-rc1`) is published as a pre-release and does not move `latest`.
+
+Bump `version` in `package.json`, move the CHANGELOG entries out of `[Unreleased]`, commit, then:
+
+```bash
+git tag v1.2.3 && git push origin v1.2.3
+```
+
+The APK is signed with your release key when these repository secrets exist, and with the debug key otherwise (see [listener.md](listener.md)): `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
 
 ## Running the test suite against PostgreSQL
 

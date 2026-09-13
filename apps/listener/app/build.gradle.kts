@@ -11,6 +11,14 @@ val keystoreProps = Properties().apply {
     if (f.exists()) f.inputStream().use { load(it) }
 }
 
+fun versionCodeFrom(versionName: String): Int {
+    val (major, minor, patch) = versionName.substringBefore("-").split(".").map { it.toInt() }
+    return major * 10000 + minor * 100 + patch
+}
+
+val listenerVersionName = (findProperty("versionName") as String?) ?: "1.0.0"
+val listenerVersionCode = (findProperty("versionCode") as String?)?.toInt() ?: versionCodeFrom(listenerVersionName)
+
 android {
     namespace = "com.tahweel.listener"
     compileSdk = 35
@@ -19,8 +27,8 @@ android {
         applicationId = "com.tahweel.listener"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = listenerVersionCode
+        versionName = listenerVersionName
     }
 
     signingConfigs {
