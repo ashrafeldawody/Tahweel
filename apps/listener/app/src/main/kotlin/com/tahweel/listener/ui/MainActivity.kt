@@ -5,14 +5,12 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.tahweel.listener.AppLog
 import com.tahweel.listener.BuildConfig
 import com.tahweel.listener.Clock
 import com.tahweel.listener.ForwarderService
-import com.tahweel.listener.Inbox
 import com.tahweel.listener.Permissions
 import com.tahweel.listener.Prefs
 import com.tahweel.listener.R
@@ -57,7 +55,6 @@ class MainActivity : AppCompatActivity() {
             toast("Service start requested")
             handler.postDelayed({ renderStatus() }, 800)
         }
-        b.importBtn.setOnClickListener { importInbox() }
         b.debugBtn.setOnClickListener { startActivity(Intent(this, DebugActivity::class.java)) }
         b.logsBtn.setOnClickListener { startActivity(Intent(this, LogsActivity::class.java)) }
         b.grantAllBtn.setOnClickListener { grantNext() }
@@ -148,29 +145,6 @@ class MainActivity : AppCompatActivity() {
                 onSuccess = { toast("Connected — server time $it") },
                 onFailure = { toast("Failed: ${it.message}") },
             )
-            renderStatus()
-        }
-    }
-
-    private fun importInbox() {
-        if (!Permissions.hasSms(this)) {
-            Permissions.requestSms(this)
-            return
-        }
-        AlertDialog.Builder(this)
-            .setTitle("Import inbox?")
-            .setMessage("Uploads the last 200 messages already on this phone. The server keeps them for the record but only auto-matches receipts newer than its max-age setting (default 48 hours); older ones are stored as stale. Use this after downtime, not as a test.")
-            .setNegativeButton("Cancel", null)
-            .setPositiveButton("Import") { _, _ -> runImport() }
-            .show()
-    }
-
-    private fun runImport() {
-        b.importBtn.isEnabled = false
-        scope.launch {
-            val queued = withContext(Dispatchers.IO) { Inbox.enqueueAll(this@MainActivity, 200) }
-            b.importBtn.isEnabled = true
-            toast("Queued $queued new message(s)")
             renderStatus()
         }
     }

@@ -42,6 +42,6 @@ The phone must never stop delivering SMS. Go through every item once:
 
 ## Screens
 
-- **Main**: server settings, permission checklist with a "Grant everything" shortcut, service control, inbox import (last 200 messages, with confirmation) and live status.
-- **Debug: inbox**: the last 100 inbox messages with their upload state; send any one of them, or a custom message, and see how the server parsed it.
+- **Main**: server settings, permission checklist with a "Grant everything" shortcut, service control and live status.
+- **Debug: test message**: paste the text of a wallet SMS, send it, and see how the server parsed it.
 - **Logs**: a persistent ring buffer of the last 3000 log lines with refresh, copy, share and clear.

@@ -4,9 +4,16 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-13
+
+### Changed
+
+- Listener: `READ_SMS` is no longer requested. The inbox import and the debug inbox list are gone; the debug screen keeps the "send a test message" box. The app holds `RECEIVE_SMS` only, the smallest permission footprint that can still receive wallet receipts. Play Protect still blocks sideloaded installs on that permission alone; see [docs/listener.md](docs/listener.md#installing-and-configuring) for the ADB route.
+- Dashboard: the Messages table shows the sender name as the primary "From" value when the receipt has no phone number.
+
 ### Added
 
-- Orange Cash (Egypt) parser: transfers received (current and older Arabic templates, Arabic-Indic digits) and agent cash-ins. These receipts name the sender without a phone number, so `senderPhone` is now nullable; such receipts auto-match only `allow_amount_only` intents and can be matched by hand otherwise. The dashboard shows the sender name as the primary "From" value when there is no phone.
+- Orange Cash (Egypt) parser: transfers received (current and older Arabic templates, Arabic-Indic digits) and agent cash-ins. These receipts name the sender without a phone number, so `senderPhone` is now nullable; such receipts auto-match only `allow_amount_only` intents and can be matched by hand otherwise.
 - Webhook URL and secret are editable on the dashboard's Settings page (`webhook_url` / write-only `webhook_secret` on `PATCH /admin/settings`); `WEBHOOK_URL` / `WEBHOOK_SECRET` remain as environment defaults.
 - Release workflow: pushing a `v*` tag publishes `ghcr.io/ashrafeldawody/tahweel` and attaches the listener APK to a GitHub Release; the tag sets the APK `versionName` and derives `versionCode`.
 - `docker-compose.yml` uses the published image (`TAHWEEL_VERSION` selects the tag); `--build` still builds from source.

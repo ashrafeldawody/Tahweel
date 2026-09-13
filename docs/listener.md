@@ -10,9 +10,9 @@ The listener is a small Kotlin app (`apps/listener`) that turns a spare Android 
 | `ForwarderService` | Foreground service (`specialUse` type, partial wake lock). Drains the queue in batches of 50 with exponential backoff (5 s → 5 min) and sends a heartbeat every 60 s. |
 | `KeepAliveWorker` | WorkManager job every 15 minutes: uploads anything pending, restarts the service if it died. Also used as an expedited fallback when Android refuses a foreground start from the background. |
 | `BootReceiver` | Restarts everything after boot / app update. |
-| `Store` | SQLite: queue, sent fingerprints (so the inbox import never re-sends), 3000-line log ring buffer, stats. |
-| `MainActivity` | Server URL, ingest token, device name; permission checklist with **Grant everything**; Start service; Import inbox (last 200, with a confirmation dialog); Test connection; live status. |
-| `DebugActivity` | Last 100 inbox messages with their upload state, **Send** any of them now and see the server's verdict (status, amount, sender), plus a free-text box to send a custom message. |
+| `Store` | SQLite: queue, sent fingerprints, 3000-line log ring buffer, stats. |
+| `MainActivity` | Server URL, ingest token, device name; permission checklist with **Grant everything**; Start service; Test connection; live status. |
+| `DebugActivity` | A free-text box to send a message and see the server's verdict (status, amount, sender). |
 | `LogsActivity` | Persistent log with refresh / copy / share / clear. |
 
 Protocol: `POST {server}/ingest/sms` and `POST {server}/ingest/heartbeat` with `Authorization: Bearer <INGEST_TOKEN>`; timestamps are ISO 8601 UTC. See [api.md](api.md#ingest-api-ingest).
@@ -55,12 +55,12 @@ The version comes from the `versionName` Gradle property (`./gradlew assembleRel
 
 ## Operating
 
-- **Import inbox** uploads the last 200 messages already on the phone. Use it after downtime. The server stores them for the record but only auto-matches receipts newer than `max_age_hours`; older ones are `stale`.
-- **Debug: inbox** answers "what does the server think of this message?" without waiting for a new SMS.
+- **Debug: test message** answers "what does the server think of this message?" without waiting for a new SMS: paste the body, send, read the verdict.
+- There is no inbox import. The app only holds `RECEIVE_SMS`, never `READ_SMS`, so it cannot read messages that arrived while it was not installed; after downtime, paste the missed receipts into the debug screen or match them by hand from the dashboard.
 - **Logs → Share** is what to send when something looks wrong. The header contains app version, device id, server URL, queue size and the last error.
 - When the dashboard shows the phone offline: charger, network, notification still present, then Logs.
 - Rotating `INGEST_TOKEN`: change it on the server, then paste the new one in the app and Save. Queued messages are retried with the new token.
 
 ## Deliberate limits
 
-No USSD, no reading of wallet-app notifications, no outgoing SMS, no root. One phone forwards one SIM's inbox (dual-SIM phones report `sim_slot` but the server does not use it).
+No USSD, no reading of wallet-app notifications, no reading of the existing inbox (`READ_SMS`), no outgoing SMS, no root. One phone forwards one SIM's incoming SMS (dual-SIM phones report `sim_slot` but the server does not use it).

@@ -17,7 +17,7 @@ export const OPENAPI_INFO = {
   openapi: '3.0.3',
   info: {
     title: 'Tahweel API',
-    version: '0.1.0',
+    version: '0.2.0',
     description:
       'Self-hosted mobile-wallet SMS payment confirmation. Three credentials: the listener phone uses `Authorization: Bearer <INGEST_TOKEN>` on `/ingest/*`, integrators use `X-Api-Key: <API_KEY>` on `/api/v1/*`, and the dashboard exchanges `ADMIN_PASSWORD` for a JWT used as `Authorization: Bearer <token>` on `/admin/*`.',
     license: { name: 'MIT' },

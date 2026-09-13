@@ -3,7 +3,7 @@
     <string name="app_name">Tahweel Listener</string>
     <string name="notif_channel">Tahweel listener</string>
     <string name="notif_title">Tahweel listener</string>
-    <string name="debug_title">Debug: inbox</string>
+    <string name="debug_title">Debug: test message</string>
     <string name="logs_title">Logs</string>
 
     <string name="section_server">Server</string>
@@ -14,7 +14,7 @@
     <string name="btn_test">Test connection</string>
 
     <string name="section_permissions">Permissions</string>
-    <string name="perm_sms">Receive and read SMS</string>
+    <string name="perm_sms">Receive SMS</string>
     <string name="perm_notifications">Show notifications</string>
     <string name="perm_battery">Ignore battery optimisation</string>
     <string name="perm_background">Background / sleeping apps (Samsung)</string>
@@ -25,17 +25,17 @@
 
     <string name="section_service">Service</string>
     <string name="btn_start_service">Start / restart service</string>
-    <string name="btn_import_inbox">Import inbox (last 200)</string>
-    <string name="btn_debug">Debug: inbox</string>
+    <string name="btn_debug">Debug: test message</string>
     <string name="btn_logs">Logs</string>
 
     <string name="section_status">Status</string>
     <string name="status_placeholder">—</string>
 
-    <string name="debug_custom_title">Send a custom test message</string>
+    <string name="debug_custom_title">Send a test message</string>
     <string name="hint_debug_address">Sender ID (e.g. e&amp; money)</string>
     <string name="hint_debug_body">Message body</string>
     <string name="btn_send_test">Send to server</string>
+    <string name="debug_custom_hint">Paste the text of a wallet SMS to see how the server parses it. The message is stored on the server like a real one, so use amounts that will not match a pending intent by accident.</string>
     <string name="btn_send">Send</string>
     <string name="btn_refresh">Refresh</string>
     <string name="btn_clear">Clear</string>

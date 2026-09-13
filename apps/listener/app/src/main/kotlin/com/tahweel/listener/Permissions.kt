@@ -18,7 +18,7 @@ object Permissions {
     const val REQUEST_SMS = 11
     const val REQUEST_NOTIFICATIONS = 12
 
-    val smsPermissions = arrayOf(Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS)
+    val smsPermissions = arrayOf(Manifest.permission.RECEIVE_SMS)
 
     fun hasSms(context: Context): Boolean =
         smsPermissions.all { ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED }

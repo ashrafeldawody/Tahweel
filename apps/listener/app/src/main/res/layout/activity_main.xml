@@ -147,17 +147,8 @@
                 android:id="@+id/startServiceBtn"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
                 android:layout_weight="1"
                 android:text="@string/btn_start_service" />
-
-            <Button
-                android:id="@+id/importBtn"
-                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/btn_import_inbox" />
         </LinearLayout>
 
         <LinearLayout

@@ -1,6 +1,6 @@
 {
   "name": "tahweel",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Turn a spare Android phone into a self-hosted payment gateway for mobile wallets: the phone forwards wallet SMS receipts, the server matches them to payment intents and fires signed webhooks.",
   "license": "MIT",

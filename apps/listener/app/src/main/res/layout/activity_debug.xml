@@ -41,18 +41,11 @@
             android:text="@string/btn_send_test" />
 
         <TextView
-            android:id="@+id/inboxHint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
+            android:text="@string/debug_custom_hint"
             android:textColor="@color/muted"
             android:textSize="12sp" />
     </LinearLayout>
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/list"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:clipToPadding="false"
-        android:paddingBottom="24dp" />
 </LinearLayout>

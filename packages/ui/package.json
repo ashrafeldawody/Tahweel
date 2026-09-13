@@ -1,6 +1,6 @@
 {
   "name": "@tahweel/ui",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Tahweel admin dashboard: a React SPA served by the Tahweel server for reviewing wallet receipts, intents, devices and webhooks.",
   "license": "MIT",

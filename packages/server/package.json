@@ -1,6 +1,6 @@
 {
   "name": "@tahweel/server",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Tahweel server: ingests wallet SMS from the listener phone, matches receipts to payment intents, fires signed webhooks.",
   "license": "MIT",

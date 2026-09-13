@@ -52,7 +52,7 @@ How the registry uses it: the first parser whose `detect()` returns true parses 
 
 Orange Cash was added this way; [orange-cash.parser.ts](../packages/server/src/parsers/orange-cash.parser.ts) and [orange-cash.samples.json](../packages/server/src/parsers/orange-cash.samples.json) are the finished result.
 
-1. Collect real messages from the phone (Debug inbox screen → copy) and their meaning. Never invent samples: the test is only as good as the messages are real.
+1. Collect real messages from the phone (the wallet SIM's messaging app, or the body stored under **Messages** in the dashboard) and their meaning. Never invent samples: the test is only as good as the messages are real.
 
 2. Create `packages/server/src/parsers/<provider>.parser.ts`:
 
@@ -112,7 +112,7 @@ Samples with `expected: null` assert that the parser rejects the message; sample
 
 ## Debugging a template change
 
-When an operator changes its wording, the receipt lands as `not_receipt` in the dashboard with the full body. Copy the body into a new sample, adjust the regexes until the test passes, deploy. Nothing was lost in the meantime: after the deploy, press **Reopen** on the row or **Re-run matching**; rows stored as `not_receipt` are not re-parsed, so paste the body into the listener's debug screen to re-send it (the fingerprint differs, so it is stored as a new row) or match it by hand.
+When an operator changes its wording, the receipt lands as `not_receipt` in the dashboard with the full body. Copy the body into a new sample, adjust the regexes until the test passes, deploy. Nothing was lost in the meantime: after the deploy, press **Reopen** on the row or **Re-run matching**; rows stored as `not_receipt` are not re-parsed, so paste the body into the listener's **Debug: test message** screen to re-send it (the fingerprint differs, so it is stored as a new row) or match it by hand.
 
 ## The shared normaliser
 

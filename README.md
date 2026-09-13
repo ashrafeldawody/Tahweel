@@ -32,7 +32,7 @@ In Egypt and similar markets, small businesses get paid through mobile wallets. 
 |---|---|---|
 | `packages/server` | Node 24 + TypeScript server: Hono + Zod (OpenAPI generated from the schemas), Kysely over SQLite (default) or PostgreSQL, signed webhooks with retries, admin API, Swagger UI at `/docs` | [packages/server/README.md](packages/server/README.md) |
 | `packages/ui` | Admin dashboard (React + Vite + Mantine) served by the server: Overview, Devices, Messages, Intents, Webhook deliveries, Settings | [packages/ui/README.md](packages/ui/README.md) |
-| `apps/listener` | Android app (Kotlin) that forwards SMS with a queue, retries, heartbeat, inbox import, debug and log screens | [apps/listener/README.md](apps/listener/README.md), [docs/listener.md](docs/listener.md) |
+| `apps/listener` | Android app (Kotlin) that forwards SMS with a queue, retries, heartbeat, debug and log screens; holds only `RECEIVE_SMS` | [apps/listener/README.md](apps/listener/README.md), [docs/listener.md](docs/listener.md) |
 | `docs/` | API, webhooks, parsers, listener, deployment guides and the exported `openapi.json` | [docs/README.md](docs/README.md) |
 | `postman/` | Postman collection + environment generated from the OpenAPI document | [postman/README.md](postman/README.md) |
 | `scripts/` | `build-listener.ps1` / `.sh`, `generate-postman.mjs`, `lint-no-comments.mjs` | |
