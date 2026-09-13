@@ -1,0 +1,3 @@
+-keep class com.tahweel.listener.** { *; }
+-dontwarn okhttp3.**
+-dontwarn okio.**

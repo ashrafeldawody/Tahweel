@@ -1,0 +1,41 @@
+{
+  "provider": "vodafone_cash",
+  "samples": [
+    {
+      "name": "receipt with balance, date and transaction number",
+      "address": "vf-cash",
+      "body": "تم استلام مبلغ 2700.00 جنيه من رقم 01120993505 المسجل بإسم Ashraf A Eldawody على رقم محفظتك  01000588965.\nرصيدك الحالي: 2724.51 جنيه\nتاريخ العملية: 17:36 26-07-27\nرقم العملية: 022108458264\nتابع كل مصروفاتك من تاريخ المعاملات على أبلكيشن أنا فودافون http://vf.eg/vfcash",
+      "expected": {
+        "amountCents": 270000,
+        "senderPhone": "01120993505",
+        "senderName": "Ashraf A Eldawody",
+        "balanceCents": 272451,
+        "reference": "022108458264"
+      }
+    },
+    {
+      "name": "detected from the body when the sender id is a generic short code",
+      "address": "1234",
+      "body": "تم استلام مبلغ 2700.00 جنيه من رقم 01120993505 المسجل بإسم Ashraf A Eldawody على رقم محفظتك  01000588965.\nرصيدك الحالي: 2724.51 جنيه\nتاريخ العملية: 17:36 26-07-27\nرقم العملية: 022108458264\nتابع كل مصروفاتك من تاريخ المعاملات على أبلكيشن أنا فودافون http://vf.eg/vfcash",
+      "expected": {
+        "amountCents": 270000,
+        "senderPhone": "01120993505",
+        "senderName": "Ashraf A Eldawody",
+        "balanceCents": 272451,
+        "reference": "022108458264"
+      }
+    },
+    {
+      "name": "outgoing transfer is rejected",
+      "address": "vf-cash",
+      "body": "تم تحويل مبلغ 500.00 جنيه الى رقم 01061916846 بنجاح. رصيدك الحالي: 10.00 جنيه",
+      "expected": null
+    },
+    {
+      "name": "OTP is rejected",
+      "address": "vf-cash",
+      "body": "رمز التحقق الخاص بك هو 654321. لا تشاركه مع احد",
+      "expected": null
+    }
+  ]
+}

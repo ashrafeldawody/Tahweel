@@ -1,0 +1,71 @@
+{
+  "provider": "etisalat_money",
+  "samples": [
+    {
+      "name": "receipt with balance and marketing tail",
+      "address": "e& money",
+      "body": "تم إستلام مبلغ 200.00 ج.م من رقم 01061916846 المسجل باسمABANWB N ASRAAEYL بنجاح. رصيد محفظتك الحالى 429.90 ج.م.استخدم e& money هتكسب و العب هتكسب هدايا تانية كتير http://spr.ly/Spin_The_Wheel وكمان تقدر تستمتع بخصم %30على وجبة كومبو من Buffalo Burger ب 160 جنيه بدل225 لما تدفع ب http://spr.ly/BuffaloBurger2 e& money",
+      "expected": {
+        "amountCents": 20000,
+        "senderPhone": "01061916846",
+        "senderName": "ABANWB N ASRAAEYL",
+        "balanceCents": 42990,
+        "reference": null
+      }
+    },
+    {
+      "name": "deposit variant without currency word and with a 0020 prefixed account",
+      "address": "e& money",
+      "body": "تم إيداع مبلغ 1.00  في حسابك بنجاح من رقم حساب 00201000588965 المسجل باسم ASHRAF ABDU LLATIF MOHAMED ELDAWODI \n استخدم e& money هتكسب و العب هتكسب هدايا تانية كتير http://spr.ly/Spin_The_Wheel",
+      "expected": {
+        "amountCents": 100,
+        "senderPhone": "01000588965",
+        "senderName": "ASHRAF ABDU LLATIF MOHAMED ELDAWODI",
+        "balanceCents": null,
+        "reference": null
+      }
+    },
+    {
+      "name": "arabic-indic digits",
+      "address": "e& money",
+      "body": "تم استلام مبلغ ٢٥٠.٥٠ ج.م من رقم ٠١١٢٠٩٩٣٥٠٥ بنجاح",
+      "expected": {
+        "amountCents": 25050,
+        "senderPhone": "01120993505",
+        "senderName": null,
+        "balanceCents": null,
+        "reference": null
+      }
+    },
+    {
+      "name": "+20 prefixed sender is stored as 11 local digits",
+      "address": "e& money",
+      "body": "تم استلام مبلغ 100 ج.م من رقم +201061916846 بنجاح",
+      "expected": {
+        "amountCents": 10000,
+        "senderPhone": "01061916846",
+        "senderName": null,
+        "balanceCents": null,
+        "reference": null
+      }
+    },
+    {
+      "name": "outgoing transfer is rejected",
+      "address": "e& money",
+      "body": "تم تحويل مبلغ 200.00 ج.م الى رقم 01061916846 بنجاح. رصيدك الحالي 10 ج.م",
+      "expected": null
+    },
+    {
+      "name": "OTP is rejected",
+      "address": "e& money",
+      "body": "كود التفعيل الخاص بك هو 123456",
+      "expected": null
+    },
+    {
+      "name": "marketing is rejected",
+      "address": "e& money",
+      "body": "عرض خاص: اشحن 100 جنيه واكسب 20 جنيه",
+      "expected": null
+    }
+  ]
+}
