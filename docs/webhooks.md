@@ -1,6 +1,6 @@
 # Webhooks
 
-Tahweel POSTs JSON events to `WEBHOOK_URL` (or the `webhook_url` given on an intent). Every delivery is stored in `webhook_deliveries` and visible in the dashboard, where it can be redelivered.
+Tahweel POSTs JSON events to the webhook URL configured on the dashboard's Settings page (falling back to `WEBHOOK_URL` from the environment), or to the `webhook_url` given on an intent. Every delivery is stored in `webhook_deliveries` and visible in the dashboard, where it can be redelivered.
 
 ## Events
 
@@ -144,4 +144,5 @@ http_response_code(200);
 ## Testing locally
 
 - Dashboard → Webhooks → **Send test event** posts `webhook.test` to the configured URL.
-- Point `WEBHOOK_URL` at a request bin or `npx smee-client` during development. The signature is only added when `WEBHOOK_SECRET` is set (the server refuses to start with `WEBHOOK_URL` and no secret).
+- Point the webhook URL at a request bin or `npx smee-client` during development. A URL always comes with a secret: the Settings page refuses a URL without one, and the server refuses to start with `WEBHOOK_URL` and no `WEBHOOK_SECRET`.
+- Settings page values take precedence over the environment variables; clearing a field in the dashboard falls back to the variable. The secret is write-only: the API reports `webhook_secret_set` but never returns it.

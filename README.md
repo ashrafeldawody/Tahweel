@@ -68,7 +68,7 @@ flowchart LR
    git clone https://github.com/ashrafeldawody/tahweel.git && cd tahweel
    cp .env.example .env
    ```
-2. Edit `.env`: set three secrets (`INGEST_TOKEN`, `API_KEY`, `ADMIN_PASSWORD`) and, when your backend is ready, `WEBHOOK_URL` + `WEBHOOK_SECRET`. Generate secrets with `openssl rand -hex 32`.
+2. Edit `.env`: set three secrets (`INGEST_TOKEN`, `API_KEY`, `ADMIN_PASSWORD`). Generate secrets with `openssl rand -hex 32`. The webhook URL and secret can go here too (`WEBHOOK_URL` + `WEBHOOK_SECRET`) or be entered later on the dashboard's Settings page.
 3. Start:
    ```bash
    docker compose pull && docker compose up -d
@@ -106,7 +106,7 @@ A Samsung with One UI is the reference device; other vendors have equivalent swi
 4. **Age gate**: receipts older than `max_age_hours` (default 48) are stored as `stale` and never auto-matched (the inbox import after downtime must not re-credit old payments).
 5. **Matching**: the oldest pending, unexpired intent with the same `sender_phone` and `amount <= paid amount` wins (overpayment is fine, underpayment never matches). Intents without a sender phone must opt in with `allow_amount_only` and only match an **exact** amount when exactly one such intent is pending.
 6. **Lock before apply**: the message flips `unmatched → matching` and the intent `pending → matched` with conditional updates, so two reconcilers (or two processes) cannot apply the same receipt twice. Runs on every ingest, on every intent creation, and every `RECONCILE_INTERVAL_MINUTES`.
-7. **Webhook**: `payment.matched` with the intent and the message, signed with `WEBHOOK_SECRET`, retried with backoff for up to 8 attempts. Everything else is visible in the dashboard where an operator can match by hand, ignore, reopen or re-trust.
+7. **Webhook**: `payment.matched` with the intent and the message, signed with the webhook secret, retried with backoff for up to 8 attempts. Everything else is visible in the dashboard where an operator can match by hand, ignore, reopen or re-trust.
 
 ## Security model
 

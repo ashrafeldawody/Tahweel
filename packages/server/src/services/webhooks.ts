@@ -1,11 +1,11 @@
 import { createHmac } from 'node:crypto';
 import type { Kysely } from 'kysely';
-import type { Env } from '../config/env.js';
 import { newId } from '../config/ids.js';
 import { logger } from '../config/log.js';
 import { MINUTE_MS, HOUR_MS, isoAfterMs, nowIso } from '../config/time.js';
 import type { Database, DeliveryStatus, WebhookDeliveryRow, WebhookEvent } from '../db/schema.js';
 import { conflict, notFound } from './errors.js';
+import type { SettingsService } from './settings.js';
 
 const log = logger('webhooks');
 
@@ -60,20 +60,21 @@ export class WebhookService {
 
   constructor(
     private readonly db: Kysely<Database>,
-    private readonly env: Pick<Env, 'WEBHOOK_URL' | 'WEBHOOK_SECRET'>,
+    private readonly settings: SettingsService,
     private readonly fetcher: Fetcher = fetch,
   ) {}
 
-  get configured(): boolean {
-    return Boolean(this.env.WEBHOOK_URL && this.env.WEBHOOK_SECRET);
+  async isConfigured(): Promise<boolean> {
+    const { url, secret } = await this.settings.webhook();
+    return Boolean(url && secret);
   }
 
-  resolveUrl(override?: string | null): string | null {
-    return override || this.env.WEBHOOK_URL || null;
+  async resolveUrl(override?: string | null): Promise<string | null> {
+    return override || (await this.settings.webhook()).url || null;
   }
 
   async enqueue(event: WebhookEvent, data: Record<string, unknown>, options: EnqueueOptions = {}): Promise<WebhookDeliveryRow | null> {
-    const url = this.resolveUrl(options.url);
+    const url = await this.resolveUrl(options.url);
     if (!url) return null;
     const id = newId();
     const createdAt = nowIso();
@@ -209,7 +210,8 @@ export class WebhookService {
       [EVENT_HEADER]: row.event,
       [DELIVERY_HEADER]: row.id,
     };
-    if (this.env.WEBHOOK_SECRET) headers[SIGNATURE_HEADER] = buildSignatureHeader(this.env.WEBHOOK_SECRET, row.payload);
+    const { secret } = await this.settings.webhook();
+    if (secret) headers[SIGNATURE_HEADER] = buildSignatureHeader(secret, row.payload);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {

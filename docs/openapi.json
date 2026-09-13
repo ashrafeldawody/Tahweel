@@ -862,6 +862,17 @@
           "email_alerts": {
             "type": "boolean",
             "example": true
+          },
+          "webhook_url": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://your-app.example.com/webhooks/tahweel",
+            "description": "Default target for events; null when neither the setting nor WEBHOOK_URL is set"
+          },
+          "webhook_secret_set": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether an HMAC secret is available (the secret itself is never returned)"
           }
         },
         "required": [
@@ -873,7 +884,9 @@
           "intent_ttl_minutes",
           "offline_alert_minutes",
           "webhook_unmatched_receipts",
-          "email_alerts"
+          "email_alerts",
+          "webhook_url",
+          "webhook_secret_set"
         ]
       },
       "SettingsPatch": {
@@ -922,6 +935,20 @@
           },
           "email_alerts": {
             "type": "boolean"
+          },
+          "webhook_url": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 2048,
+            "format": "uri",
+            "description": "null falls back to WEBHOOK_URL from the environment"
+          },
+          "webhook_secret": {
+            "type": "string",
+            "nullable": true,
+            "minLength": 16,
+            "maxLength": 256,
+            "description": "Write-only; null falls back to WEBHOOK_SECRET from the environment"
           }
         }
       },

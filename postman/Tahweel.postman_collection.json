@@ -978,7 +978,7 @@
             "description": "Update settings",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"trusted_senders\": [\n    \"string\"\n  ],\n  \"max_age_hours\": 1,\n  \"auto_match\": false,\n  \"currency\": \"string\",\n  \"timezone\": \"string\",\n  \"intent_ttl_minutes\": 1,\n  \"offline_alert_minutes\": 5,\n  \"webhook_unmatched_receipts\": false,\n  \"email_alerts\": false\n}",
+              "raw": "{\n  \"trusted_senders\": [\n    \"string\"\n  ],\n  \"max_age_hours\": 1,\n  \"auto_match\": false,\n  \"currency\": \"string\",\n  \"timezone\": \"string\",\n  \"intent_ttl_minutes\": 1,\n  \"offline_alert_minutes\": 5,\n  \"webhook_unmatched_receipts\": false,\n  \"email_alerts\": false,\n  \"webhook_url\": \"string\",\n  \"webhook_secret\": \"string\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

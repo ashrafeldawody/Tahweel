@@ -41,9 +41,9 @@ export const SERVER_VERSION = '0.1.0';
 
 export async function buildContext(env: Env, handle: DatabaseHandle, overrides: ContextOverrides = {}): Promise<AppContext> {
   await loadParsers();
-  const settings = new SettingsService(handle.db);
+  const settings = new SettingsService(handle.db, { url: env.WEBHOOK_URL, secret: env.WEBHOOK_SECRET });
   const mail = overrides.mailer ?? new SmtpMailer(env);
-  const webhooks = new WebhookService(handle.db, env, overrides.fetcher);
+  const webhooks = new WebhookService(handle.db, settings, overrides.fetcher);
   const alerts = new AlertService(webhooks, mail, settings);
   const devices = new DevicesService(handle.db, settings, alerts);
   const intents = new IntentsService(handle.db, settings);

@@ -12,6 +12,8 @@ export const settingsFixture: Settings = {
   offline_alert_minutes: 30,
   webhook_unmatched_receipts: false,
   email_alerts: true,
+  webhook_url: 'https://shop.example.com/webhooks/tahweel',
+  webhook_secret_set: true,
 };
 
 export const deviceFixture: Device = {

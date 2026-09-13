@@ -41,7 +41,7 @@ Rotating: change the env value, restart the server, update the phone (Settings s
 - `sender_phone` is the number the customer will pay from (any of `0106…`, `+20106…`, `0020106…` are accepted and normalised). Ask the customer for it on your checkout page: it is the one fact that stops a stranger's transfer of the same amount from being credited to the wrong order.
 - Without `sender_phone` you must set `allow_amount_only: true`. The intent then only matches a receipt whose amount is **exactly** equal and only when no other amount-only intent with the same amount is pending. This is documented as risky on purpose.
 - `expires_in_minutes` defaults to the `intent_ttl_minutes` setting (120). Expired intents never match; a late receipt shows as `unmatched` in the dashboard for a human decision.
-- `webhook_url` overrides the server-wide `WEBHOOK_URL` for this intent's `payment.matched` event.
+- `webhook_url` overrides the server-wide webhook URL (Settings page or `WEBHOOK_URL`) for this intent's `payment.matched` event.
 - The response is `201` with the intent and `message: null`, or, if a matching receipt had already arrived, `status: "matched"` with the message embedded.
 
 ### Read
@@ -87,7 +87,7 @@ Everything the dashboard does. Highlights:
 - `POST /admin/messages/{id}/match { intent_id }`: manual match, overriding the stale/untrusted gates (check the wallet balance first). `POST .../ignore`, `POST .../reopen` (ignored/stale/untrusted back to `unmatched` and re-matched), `POST .../retrust` (re-evaluate an `untrusted_sender` row against the current allowlist).
 - `POST /admin/intents` creates an intent from the dashboard (same body as the integrator API), `POST /admin/intents/{id}/cancel`.
 - `POST /admin/reconcile`: re-trust, expire, demote stale, match; returns the counts.
-- `GET|PATCH /admin/settings`: `trusted_senders[]`, `max_age_hours`, `auto_match`, `currency`, `timezone`, `intent_ttl_minutes`, `offline_alert_minutes`, `webhook_unmatched_receipts`, `email_alerts`.
+- `GET|PATCH /admin/settings`: `trusted_senders[]`, `max_age_hours`, `auto_match`, `currency`, `timezone`, `intent_ttl_minutes`, `offline_alert_minutes`, `webhook_unmatched_receipts`, `email_alerts`, `webhook_url` (null falls back to `WEBHOOK_URL`), `webhook_secret` (write-only, ≥ 16 chars; responses carry `webhook_secret_set` instead). A URL without any secret is rejected with `webhook_secret_required`.
 - `GET /admin/webhooks?status=`, `POST /admin/webhooks/{id}/redeliver`, `POST /admin/webhooks/test { url? }`.
 - `GET /admin/health`: version, database dialect and location, parser ids, configuration flags.
 

@@ -297,7 +297,7 @@ export function adminRoutes(ctx: AppContext) {
   router.openapi(me, (c) => c.json(c.get('admin'), 200));
 
   router.openapi(overview, async (c) => {
-    const [messages, intents, webhooks, devices, settings, recent, matched] = await Promise.all([
+    const [messages, intents, webhooks, devices, settings, recent, matched, webhookConfigured] = await Promise.all([
       ctx.admin.countMessagesByStatus(),
       ctx.intents.countByStatus(),
       ctx.webhooks.countByStatus(),
@@ -305,6 +305,7 @@ export function adminRoutes(ctx: AppContext) {
       ctx.settings.get(),
       ctx.admin.recentMessages(10),
       ctx.admin.matchedSince(new Date(Date.now() - 24 * HOUR_MS).toISOString()),
+      ctx.webhooks.isConfigured(),
     ]);
     const online = devices.filter((d) => d.online).length;
     return c.json(
@@ -316,7 +317,7 @@ export function adminRoutes(ctx: AppContext) {
         matched_last_24h: matched,
         recent_messages: recent.map(serializeMessage),
         parsers: getParsers().map((p) => ({ id: p.id, name: p.name, sender_ids: p.senderIds })),
-        webhook_configured: ctx.webhooks.configured,
+        webhook_configured: webhookConfigured,
         mail_configured: ctx.mail.configured,
         settings,
         server_time: nowIso(),
@@ -402,14 +403,14 @@ export function adminRoutes(ctx: AppContext) {
     return c.json(serializeDelivery(await ctx.webhooks.get(delivery.id)), 200);
   });
 
-  router.openapi(adminHealth, (c) =>
+  router.openapi(adminHealth, async (c) =>
     c.json(
       {
         ok: true,
         version: ctx.version,
         database: { dialect: ctx.dialect, location: ctx.databaseLocation },
         parsers: getParsers().map((p) => p.id),
-        webhook_configured: ctx.webhooks.configured,
+        webhook_configured: await ctx.webhooks.isConfigured(),
         mail_configured: ctx.mail.configured,
         started_at: ctx.startedAt,
         server_time: nowIso(),

@@ -29,10 +29,11 @@ async function main(): Promise<void> {
   const ctx = await buildContext(env, handle);
   const app = createApp(ctx);
   const stopJobs = startJobs(ctx);
+  const webhookConfigured = await ctx.webhooks.isConfigured();
 
   const server = serve({ fetch: app.fetch, port: env.PORT, hostname: env.HOST }, (info) => {
     log.info(`Tahweel ${ctx.version} listening on http://${info.address}:${info.port} (docs at /docs)`);
-    if (!ctx.webhooks.configured) log.warn('WEBHOOK_URL not set: matches are recorded but no webhook is sent');
+    if (!webhookConfigured) log.warn('no webhook URL configured (Settings page or WEBHOOK_URL): matches are recorded but no webhook is sent');
   });
 
   const shutdown = async (signal: string) => {

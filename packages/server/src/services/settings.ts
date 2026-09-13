@@ -2,6 +2,7 @@ import type { Kysely } from 'kysely';
 import type { Database } from '../db/schema.js';
 import { normalizeSenderAddress } from '../parsers/normalize.js';
 import { defaultTrustedSenders } from '../parsers/registry.js';
+import { badRequest } from './errors.js';
 
 export interface Settings {
   trusted_senders: string[];
@@ -13,11 +14,22 @@ export interface Settings {
   offline_alert_minutes: number;
   webhook_unmatched_receipts: boolean;
   email_alerts: boolean;
+  webhook_url: string | null;
+  webhook_secret_set: boolean;
 }
 
-export type SettingsPatch = Partial<Settings>;
+export interface SettingsPatch extends Partial<Omit<Settings, 'webhook_secret_set'>> {
+  webhook_secret?: string | null;
+}
 
-export const SETTINGS_DEFAULTS: Omit<Settings, 'trusted_senders'> = {
+export interface WebhookConfig {
+  url: string | null;
+  secret: string | null;
+}
+
+export type WebhookDefaults = Partial<WebhookConfig>;
+
+export const SETTINGS_DEFAULTS: Omit<Settings, 'trusted_senders' | 'webhook_url' | 'webhook_secret_set'> = {
   max_age_hours: 48,
   auto_match: true,
   currency: 'EGP',
@@ -40,21 +52,17 @@ const KEYS = [
   'email_alerts',
 ] as const satisfies readonly (keyof Settings)[];
 
+type Reader = <T>(key: string, fallback: T) => T;
+
 export class SettingsService {
-  constructor(private readonly db: Kysely<Database>) {}
+  constructor(
+    private readonly db: Kysely<Database>,
+    private readonly webhookDefaults: WebhookDefaults = {},
+  ) {}
 
   async get(): Promise<Settings> {
-    const rows = await this.db.selectFrom('settings').selectAll().execute();
-    const stored = new Map(rows.map((r) => [r.key, r.value]));
-    const read = <T>(key: keyof Settings, fallback: T): T => {
-      const raw = stored.get(key);
-      if (raw === undefined) return fallback;
-      try {
-        return JSON.parse(raw) as T;
-      } catch {
-        return fallback;
-      }
-    };
+    const read = await this.reader();
+    const webhook = this.webhookFrom(read);
     return {
       trusted_senders: read<string[]>('trusted_senders', defaultTrustedSenders()),
       max_age_hours: read('max_age_hours', SETTINGS_DEFAULTS.max_age_hours),
@@ -68,10 +76,17 @@ export class SettingsService {
         SETTINGS_DEFAULTS.webhook_unmatched_receipts,
       ),
       email_alerts: read('email_alerts', SETTINGS_DEFAULTS.email_alerts),
+      webhook_url: webhook.url,
+      webhook_secret_set: webhook.secret !== null,
     };
   }
 
+  async webhook(): Promise<WebhookConfig> {
+    return this.webhookFrom(await this.reader());
+  }
+
   async patch(patch: SettingsPatch): Promise<Settings> {
+    await this.patchWebhook(patch);
     for (const key of KEYS) {
       const value = patch[key];
       if (value === undefined) continue;
@@ -87,6 +102,42 @@ export class SettingsService {
   async resetTrustedSenders(): Promise<Settings> {
     await this.db.deleteFrom('settings').where('key', '=', 'trusted_senders').execute();
     return await this.get();
+  }
+
+  private async patchWebhook(patch: SettingsPatch): Promise<void> {
+    if (patch.webhook_url === undefined && patch.webhook_secret === undefined) return;
+    const current = await this.webhook();
+    const url = patch.webhook_url === undefined ? current.url : patch.webhook_url || this.webhookDefaults.url || null;
+    const secret = patch.webhook_secret === undefined ? current.secret : patch.webhook_secret || this.webhookDefaults.secret || null;
+    if (url && !secret) throw badRequest('webhook_secret_required');
+    if (patch.webhook_url !== undefined) await this.setOrClear('webhook_url', patch.webhook_url || null);
+    if (patch.webhook_secret !== undefined) await this.setOrClear('webhook_secret', patch.webhook_secret || null);
+  }
+
+  private webhookFrom(read: Reader): WebhookConfig {
+    return {
+      url: read<string | null>('webhook_url', this.webhookDefaults.url ?? null),
+      secret: read<string | null>('webhook_secret', this.webhookDefaults.secret ?? null),
+    };
+  }
+
+  private async reader(): Promise<Reader> {
+    const rows = await this.db.selectFrom('settings').selectAll().execute();
+    const stored = new Map(rows.map((r) => [r.key, r.value]));
+    return (key, fallback) => {
+      const raw = stored.get(key);
+      if (raw === undefined) return fallback;
+      try {
+        return JSON.parse(raw) as typeof fallback;
+      } catch {
+        return fallback;
+      }
+    };
+  }
+
+  private async setOrClear(key: string, value: string | null): Promise<void> {
+    if (value === null) await this.db.deleteFrom('settings').where('key', '=', key).execute();
+    else await this.set(key, JSON.stringify(value));
   }
 
   private async set(key: string, value: string): Promise<void> {

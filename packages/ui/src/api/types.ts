@@ -108,9 +108,13 @@ export interface Settings {
   offline_alert_minutes: number;
   webhook_unmatched_receipts: boolean;
   email_alerts: boolean;
+  webhook_url: string | null;
+  webhook_secret_set: boolean;
 }
 
-export type SettingsPatch = Partial<Settings>;
+export interface SettingsPatch extends Partial<Omit<Settings, 'webhook_secret_set'>> {
+  webhook_secret?: string | null;
+}
 
 export interface Parser {
   id: string;

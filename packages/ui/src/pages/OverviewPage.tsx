@@ -1,6 +1,6 @@
-import { ActionIcon, Alert, Badge, Grid, Group, Paper, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Anchor, Badge, Grid, Group, Paper, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
 import { IconAlertTriangle, IconRefresh } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import type { Counters, Message, Parser } from '../api/types';
 import { ErrorAlert, LoadingBlock } from '../components/Feedback';
@@ -112,7 +112,11 @@ export function OverviewPage() {
           )}
           {!data.webhook_configured && (
             <Alert color="yellow" variant="light" icon={<IconAlertTriangle size={18} />} title="Webhook URL not configured">
-              Matched payments will not be pushed anywhere. Set WEBHOOK_URL on the server.
+              Matched payments will not be pushed anywhere. Set the webhook URL and secret in{' '}
+              <Anchor component={Link} to="/app/settings" size="sm">
+                Settings
+              </Anchor>
+              .
             </Alert>
           )}
           {!data.mail_configured && (

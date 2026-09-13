@@ -13,8 +13,8 @@ Tahweel is one Node process plus a database file (SQLite) or a PostgreSQL connec
 | `ADMIN_PASSWORD` | yes | | ≥ 8 chars; dashboard login |
 | `JWT_SECRET` | no | derived from the password | Set it so admin sessions survive password rotation |
 | `JWT_TTL_HOURS` | no | `24` | Admin session length |
-| `WEBHOOK_URL` | no | | Default webhook target; intents can override it |
-| `WEBHOOK_SECRET` | with `WEBHOOK_URL` | | ≥ 16 chars; HMAC key for `X-Tahweel-Signature` |
+| `WEBHOOK_URL` | no | | Webhook target; the dashboard's Settings page overrides it and intents can override it per payment |
+| `WEBHOOK_SECRET` | with `WEBHOOK_URL` | | ≥ 16 chars; HMAC key for `X-Tahweel-Signature`; also settable from the Settings page |
 | `RECONCILE_INTERVAL_MINUTES` | no | `5` | Periodic re-matching / expiry / stale sweep |
 | `UI_DIST` | no | auto | Folder with the built dashboard (`packages/ui/dist` or `public/` next to `dist/`) |
 | `SMTP_URL`, `ALERT_EMAIL_TO`, `ALERT_EMAIL_FROM` | no | | Operator e-mail alerts (`smtps://user:pass@smtp.example.com:465`) |
@@ -76,7 +76,7 @@ Restrict `/admin` and `/docs` to your office IP or a VPN if you like; `/ingest/*
 ## Operations checklist
 
 - **Health**: `GET /health` (used by the Docker healthcheck), `GET /admin/health` for details.
-- **Alerts**: set `WEBHOOK_URL` for `device.offline` / `device.online` and optionally SMTP for e-mail. Watch the Devices page after any phone reboot.
+- **Alerts**: set the webhook URL (Settings page or `WEBHOOK_URL`) for `device.offline` / `device.online` and optionally SMTP for e-mail. Watch the Devices page after any phone reboot.
 - **Backups**: the database is the only state. SQLite: copy `data/`. PostgreSQL: `pg_dump`.
 - **Rotation**: change `INGEST_TOKEN` / `API_KEY` / `ADMIN_PASSWORD` in `.env`, restart, update the phone and your backend.
 - **Scaling**: one process is enough for one wallet phone (a busy wallet receives a few hundred SMS a day). Multiple phones can report to the same server. Running two server processes on one PostgreSQL is safe (conditional updates lock every message and intent), but pointless.

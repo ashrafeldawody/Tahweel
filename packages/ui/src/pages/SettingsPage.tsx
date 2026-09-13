@@ -1,5 +1,6 @@
-import { Alert, Autocomplete, Badge, Button, Grid, Group, NumberInput, Paper, Stack, Switch, Text, TextInput, Textarea, Title } from '@mantine/core';
+import { Alert, Anchor, Autocomplete, Badge, Button, Divider, Grid, Group, NumberInput, Paper, PasswordInput, Stack, Switch, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { IconDeviceFloppy, IconRefresh } from '@tabler/icons-react';
+import { Link } from 'react-router-dom';
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api/client';
 import type { ReconcileSummary, Settings, SettingsPatch } from '../api/types';
@@ -11,6 +12,7 @@ import { notifyError, notifySuccess } from '../lib/notify';
 import { useSettings } from '../lib/settings';
 import { useAsync } from '../lib/useAsync';
 
+const MIN_SECRET_LENGTH = 16;
 const TIMEZONE_SUGGESTIONS = ['Africa/Cairo', 'Asia/Riyadh', 'Asia/Dubai', 'Asia/Kuwait', 'Asia/Amman', 'Europe/London', 'Europe/Berlin', 'UTC'];
 
 interface SettingsFormState {
@@ -23,6 +25,9 @@ interface SettingsFormState {
   offline_alert_minutes: string | number;
   webhook_unmatched_receipts: boolean;
   email_alerts: boolean;
+  webhook_url: string;
+  webhook_secret: string;
+  webhook_secret_set: boolean;
 }
 
 function toFormState(settings: Settings): SettingsFormState {
@@ -36,7 +41,29 @@ function toFormState(settings: Settings): SettingsFormState {
     offline_alert_minutes: settings.offline_alert_minutes,
     webhook_unmatched_receipts: settings.webhook_unmatched_receipts,
     email_alerts: settings.email_alerts,
+    webhook_url: settings.webhook_url ?? '',
+    webhook_secret: '',
+    webhook_secret_set: settings.webhook_secret_set,
   };
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    return ['http:', 'https:'].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+}
+
+type WebhookPatchResult = { ok: true; patch: Pick<SettingsPatch, 'webhook_url' | 'webhook_secret'> } | { ok: false; error: string };
+
+function toWebhookPatch(form: SettingsFormState): WebhookPatchResult {
+  const url = form.webhook_url.trim();
+  const secret = form.webhook_secret.trim();
+  if (url && !isHttpUrl(url)) return { ok: false, error: 'Webhook URL must start with http:// or https://' };
+  if (secret && secret.length < MIN_SECRET_LENGTH) return { ok: false, error: `Webhook secret must be at least ${MIN_SECRET_LENGTH} characters` };
+  if (url && !secret && !form.webhook_secret_set) return { ok: false, error: 'A webhook secret is required together with the URL' };
+  return { ok: true, patch: { webhook_url: url || null, ...(secret ? { webhook_secret: secret } : {}) } };
 }
 
 function splitLines(text: string): string[] {
@@ -62,6 +89,8 @@ function toPatch(form: SettingsFormState): PatchResult {
   for (const [key, value] of Object.entries(numbers)) {
     if (!Number.isInteger(value) || value <= 0) return { ok: false, error: `${key.replace(/_/g, ' ')} must be a positive whole number` };
   }
+  const webhook = toWebhookPatch(form);
+  if (!webhook.ok) return webhook;
   return {
     ok: true,
     patch: {
@@ -72,6 +101,7 @@ function toPatch(form: SettingsFormState): PatchResult {
       webhook_unmatched_receipts: form.webhook_unmatched_receipts,
       email_alerts: form.email_alerts,
       ...numbers,
+      ...webhook.patch,
     },
   };
 }
@@ -124,10 +154,10 @@ function ReconcileCard() {
   );
 }
 
-function ConfiguredBadge({ configured }: { configured: boolean }) {
+function ConfiguredBadge({ configured, label }: { configured: boolean; label?: string }) {
   return (
     <Badge color={configured ? 'green' : 'yellow'} tt="none" size="sm">
-      {configured ? 'configured' : 'not configured'}
+      {label ?? (configured ? 'configured' : 'not configured')}
     </Badge>
   );
 }
@@ -267,6 +297,31 @@ export function SettingsPage() {
                     checked={form.auto_match}
                     onChange={(event) => update('auto_match', event.currentTarget.checked)}
                   />
+                  <Divider label="Webhook" labelPosition="left" />
+                  <TextInput
+                    label="Webhook URL"
+                    description="Where payment.matched and device events are POSTed. Intents can override it per payment; leave empty to disable."
+                    placeholder="https://your-app.example.com/webhooks/tahweel"
+                    inputMode="url"
+                    value={form.webhook_url}
+                    onChange={(event) => update('webhook_url', event.currentTarget.value)}
+                  />
+                  <PasswordInput
+                    label={
+                      <Group gap="xs" component="span">
+                        <span>Webhook secret</span>
+                        <ConfiguredBadge configured={form.webhook_secret_set} label={form.webhook_secret_set ? 'set' : 'not set'} />
+                      </Group>
+                    }
+                    description={`HMAC key for X-Tahweel-Signature, at least ${MIN_SECRET_LENGTH} characters. ${form.webhook_secret_set ? 'Leave empty to keep the current one.' : 'Required with a URL.'}`}
+                    placeholder={form.webhook_secret_set ? '••••••••••••••••' : 'openssl rand -hex 32'}
+                    autoComplete="new-password"
+                    value={form.webhook_secret}
+                    onChange={(event) => update('webhook_secret', event.currentTarget.value)}
+                  />
+                  <Text size="xs" c="dimmed">
+                    After saving, use <Anchor component={Link} to="/app/webhooks" size="xs">Send test event</Anchor> on the Webhooks page to check the endpoint.
+                  </Text>
                   <Switch
                     label="Webhook for unmatched receipts"
                     description="Send payment.unmatched_receipt events too"

@@ -213,6 +213,8 @@ export const SettingsSchema = z
     offline_alert_minutes: z.number().int().openapi({ example: 30 }),
     webhook_unmatched_receipts: z.boolean().openapi({ example: false }),
     email_alerts: z.boolean().openapi({ example: true }),
+    webhook_url: z.string().nullable().openapi({ example: 'https://your-app.example.com/webhooks/tahweel', description: 'Default target for events; null when neither the setting nor WEBHOOK_URL is set' }),
+    webhook_secret_set: z.boolean().openapi({ example: true, description: 'Whether an HMAC secret is available (the secret itself is never returned)' }),
   })
   .openapi('Settings');
 
@@ -227,6 +229,8 @@ export const SettingsPatchRequest = z
     offline_alert_minutes: z.number().int().min(5).max(24 * 60).optional(),
     webhook_unmatched_receipts: z.boolean().optional(),
     email_alerts: z.boolean().optional(),
+    webhook_url: z.string().trim().url().max(2048).nullable().optional().openapi({ description: 'null falls back to WEBHOOK_URL from the environment' }),
+    webhook_secret: z.string().min(16).max(256).nullable().optional().openapi({ description: 'Write-only; null falls back to WEBHOOK_SECRET from the environment' }),
   })
   .openapi('SettingsPatch');
 

@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- Webhook URL and secret are editable on the dashboard's Settings page (`webhook_url` / write-only `webhook_secret` on `PATCH /admin/settings`); `WEBHOOK_URL` / `WEBHOOK_SECRET` remain as environment defaults.
 - Release workflow: pushing a `v*` tag publishes `ghcr.io/ashrafeldawody/tahweel` and attaches the listener APK to a GitHub Release; the tag sets the APK `versionName` and derives `versionCode`.
 - `docker-compose.yml` uses the published image (`TAHWEEL_VERSION` selects the tag); `--build` still builds from source.
 
