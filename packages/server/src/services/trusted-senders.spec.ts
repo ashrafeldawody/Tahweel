@@ -20,7 +20,11 @@ describe('isTrustedSender', () => {
     ['1234', false],
     ['', false],
     ['MyShop', false],
-    ['Orange Cash', false],
+    ['Orange Cash', true],
+    ['OrangeCash', true],
+    ['اورنج كاش', true],
+    ['أورنج كاش', true],
+    ['InstaPay', false],
   ])('%s -> %s', (address, expected) => {
     expect(isTrustedSender(address, defaultTrustedSenders())).toBe(expected);
   });
@@ -32,7 +36,7 @@ describe('isTrustedSender', () => {
   });
 
   it('accepts a newly listed alphanumeric sender id', () => {
-    expect(isTrustedSender('Orange Cash', [...defaultTrustedSenders(), 'orange cash'])).toBe(true);
+    expect(isTrustedSender('InstaPay', [...defaultTrustedSenders(), 'instapay'])).toBe(true);
   });
 
   it('derives the default allowlist from the registered parsers', () => {

@@ -187,7 +187,7 @@ export class MatchService {
 
   async matchOne(message: SmsMessageRow): Promise<MatchOutcome> {
     if (message.status !== 'unmatched') return 'skipped';
-    if (!message.sender_phone || !message.amount_cents) return 'unmatched';
+    if (!message.amount_cents) return 'unmatched';
     const settings = await this.settings.get();
     if (!settings.auto_match) return 'skipped';
     if (isStale(message.received_at, settings.max_age_hours)) {
@@ -211,16 +211,18 @@ export class MatchService {
     message: SmsMessageRow,
   ): Promise<{ kind: 'ok'; intents: PaymentIntentRow[] } | { kind: 'ambiguous' }> {
     const now = nowIso();
-    const byPhone = await this.db
-      .selectFrom('payment_intents')
-      .selectAll()
-      .where('status', '=', 'pending')
-      .where('expires_at', '>', now)
-      .where('sender_phone', '=', message.sender_phone)
-      .where('amount_cents', '<=', message.amount_cents as number)
-      .orderBy('created_at', 'asc')
-      .execute();
-    if (byPhone.length > 0) return { kind: 'ok', intents: byPhone };
+    if (message.sender_phone) {
+      const byPhone = await this.db
+        .selectFrom('payment_intents')
+        .selectAll()
+        .where('status', '=', 'pending')
+        .where('expires_at', '>', now)
+        .where('sender_phone', '=', message.sender_phone)
+        .where('amount_cents', '<=', message.amount_cents as number)
+        .orderBy('created_at', 'asc')
+        .execute();
+      if (byPhone.length > 0) return { kind: 'ok', intents: byPhone };
+    }
     const amountOnly = await this.db
       .selectFrom('payment_intents')
       .selectAll()

@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- Orange Cash (Egypt) parser: transfers received (current and older Arabic templates, Arabic-Indic digits) and agent cash-ins. These receipts name the sender without a phone number, so `senderPhone` is now nullable; such receipts auto-match only `allow_amount_only` intents and can be matched by hand otherwise. The dashboard shows the sender name as the primary "From" value when there is no phone.
 - Webhook URL and secret are editable on the dashboard's Settings page (`webhook_url` / write-only `webhook_secret` on `PATCH /admin/settings`); `WEBHOOK_URL` / `WEBHOOK_SECRET` remain as environment defaults.
 - Release workflow: pushing a `v*` tag publishes `ghcr.io/ashrafeldawody/tahweel` and attaches the listener APK to a GitHub Release; the tag sets the APK `versionName` and derives `versionCode`.
 - `docker-compose.yml` uses the published image (`TAHWEEL_VERSION` selects the tag); `--build` still builds from source.

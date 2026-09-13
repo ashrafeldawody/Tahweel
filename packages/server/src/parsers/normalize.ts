@@ -3,6 +3,7 @@ const EASTERN_ARABIC_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
 const ALEF_VARIANTS = /[أإآ]/g;
 const ALEF_MAQSURA = /ى/g;
 const TEH_MARBUTA = /ة/g;
+const ARABIC_DECIMAL_SEPARATOR = /٫/g;
 const BIDI_MARK_RANGES: Array<[number, number]> = [
   [0x200e, 0x200f],
   [0x202a, 0x202e],
@@ -27,6 +28,7 @@ export function normalizeArabicText(input: string): string {
     .replace(ALEF_VARIANTS, 'ا')
     .replace(ALEF_MAQSURA, 'ي')
     .replace(TEH_MARBUTA, 'ه')
+    .replace(ARABIC_DECIMAL_SEPARATOR, '.')
     .replace(/\s+/g, ' ')
     .trim();
 }

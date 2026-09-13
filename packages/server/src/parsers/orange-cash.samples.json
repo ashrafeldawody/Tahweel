@@ -1,0 +1,41 @@
+{
+  "provider": "orange_cash",
+  "samples": [
+    {
+      "name": "transfer received with balance and transaction number, sender given by name only",
+      "address": "Orange Cash",
+      "body": "تم إستلام عملية تحويل أموال بمبلغ 150.00 جنيه من RYAN H Ahmed، رصيدك الحالي 366.22 جنيه. رقم المعاملة 1908287136\n100 جنيه كاش باك لما تحول، تدفع او تودع فلوس في محفظة اورنچ كاش",
+      "expected": {
+        "amountCents": 15000,
+        "senderPhone": null,
+        "senderName": "RYAN H Ahmed",
+        "balanceCents": 36622,
+        "reference": "1908287136"
+      }
+    },
+    {
+      "name": "older template with arabic-indic digits and no balance",
+      "address": "OrangeCash",
+      "body": "تم إستلام عملية تحويل اموال بمبلغ ٢٠٠٠.٠٠ جنيه من عمر محمد شوقى ابراهيم ، رقم المعاملة ٢٠٥٢٧١٧١٠٢\nكاش باك أو دقائق أو ميجابايتس كل ما تستعلم ...",
+      "expected": {
+        "amountCents": 200000,
+        "senderPhone": null,
+        "senderName": "عمر محمد شوقي ابراهيم",
+        "balanceCents": null,
+        "reference": "2052717102"
+      }
+    },
+    {
+      "name": "english cash-in at an agent, no sender at all",
+      "address": "اورنج كاش",
+      "body": "Successful cash-in with amount EGP 6.43.\nYour current balance is EGP 6.43\n\nTransfer, cash-in, pay, recharge, cash-out, and receive money from abroad with Orange Cash, and get a chance to win up to 10 grams of gold!\nEvery transaction brings you closer to gold!\nDial #71# to join the gold Competition\n\nCash-In\nhttps://myo.orange.eg/OC-IN",
+      "expected": {
+        "amountCents": 643,
+        "senderPhone": null,
+        "senderName": null,
+        "balanceCents": 643,
+        "reference": null
+      }
+    }
+  ]
+}

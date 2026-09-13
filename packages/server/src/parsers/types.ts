@@ -1,6 +1,6 @@
 export interface ParsedReceipt {
   amountCents: number;
-  senderPhone: string;
+  senderPhone: string | null;
   senderName: string | null;
   balanceCents: number | null;
   reference: string | null;

@@ -135,6 +135,43 @@ describe('MatchService (database integration)', () => {
     expect(ambiguous.note).toBe('ambiguous_amount_only');
   });
 
+  it('a receipt that names the sender but carries no phone (Orange Cash) matches only an amount-only intent', async () => {
+    const body = 'تم إستلام عملية تحويل أموال بمبلغ 150.00 جنيه من RYAN H Ahmed، رصيدك الحالي 366.22 جنيه. رقم المعاملة 1908287136';
+    const phoneBound = await t.ctx.intents.create({ reference: 'orange-1', amount: 150, sender_phone: randomPhone() });
+    const message = await ingestReceipt('', '150.00', { address: 'Orange Cash', body });
+    expect(message).toMatchObject({
+      status: 'unmatched',
+      parsed: 1,
+      provider: 'orange_cash',
+      sender_phone: null,
+      sender_name: 'RYAN H Ahmed',
+      amount_cents: 15000,
+      reference: '1908287136',
+    });
+    expect((await t.ctx.intents.get(phoneBound.id)).status).toBe('pending');
+
+    const amountOnly = await t.ctx.matcher.matchForIntent(
+      await t.ctx.intents.create({ reference: 'orange-2', amount: 150, allow_amount_only: true }),
+    );
+    expect(amountOnly.status).toBe('matched');
+    const after = await t.ctx.matcher.getMessage(message.id);
+    expect(after.status).toBe('matched');
+    expect(after.intent_id).toBe(amountOnly.id);
+    expect((await t.ctx.intents.get(phoneBound.id)).status).toBe('pending');
+  });
+
+  it('a phoneless receipt can still be matched by hand to a phone-bound intent', async () => {
+    const intent = await t.ctx.intents.create({ reference: 'orange-3', amount: 6.43, sender_phone: randomPhone() });
+    const message = await ingestReceipt('', '6.43', {
+      address: 'اورنج كاش',
+      body: 'Successful cash-in with amount EGP 6.43.\nYour current balance is EGP 6.43',
+    });
+    expect(message).toMatchObject({ status: 'unmatched', provider: 'orange_cash', sender_phone: null, amount_cents: 643 });
+    const matched = await t.ctx.matcher.manualMatch(message.id, intent.id);
+    expect(matched.status).toBe('matched');
+    expect(matched.matched_by).toBe('admin');
+  });
+
   it('stores an old receipt as stale and never auto-matches it, but allows a manual match', async () => {
     const phone = randomPhone();
     const intent = await t.ctx.intents.create({ reference: 'order-8', amount: 200, sender_phone: phone });

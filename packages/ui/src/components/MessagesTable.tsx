@@ -58,10 +58,14 @@ export function MessagesTable({ messages, currency, onSelect, emptyLabel = 'No m
               </Table.Td>
               <Table.Td>
                 <Stack gap={0}>
-                  <Text size="sm" c={message.sender_phone ? undefined : 'dimmed'}>
-                    {message.sender_phone ?? '—'}
-                  </Text>
-                  {message.sender_name && (
+                  {message.sender_phone ? (
+                    <Text size="sm">{message.sender_phone}</Text>
+                  ) : (
+                    <Text size="sm" c={message.sender_name ? undefined : 'dimmed'} dir="auto" truncate maw={180}>
+                      {message.sender_name ?? '—'}
+                    </Text>
+                  )}
+                  {message.sender_phone && message.sender_name && (
                     <Text size="xs" c="dimmed" dir="auto" truncate maw={180}>
                       {message.sender_name}
                     </Text>

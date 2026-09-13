@@ -197,12 +197,13 @@ Drop `packages/server/src/parsers/<provider>.parser.ts` (exporting `defineParser
 - **No USSD polling** and no reading of wallet-app notifications: the operator SMS is the only source.
 - **Sender ids are spoofable on some networks**, which is why the allowlist plus the age gate plus a per-intent sender phone are all on by default. Keep `allow_amount_only` off unless you accept that risk.
 - **One phone = one wallet number.** Several phones can report to one server (each is a device), but a message is matched by amount and sender phone only, never by the receiving wallet.
+- **Orange Cash receipts carry the sender's name but not their number** (and an agent cash-in carries neither), so they cannot satisfy an intent bound to a `sender_phone`. They auto-match intents created with `allow_amount_only` and otherwise wait under **Messages** for a manual match.
 - Egyptian phone numbers (`01xxxxxxxxx`) are assumed by the bundled parsers; the normaliser lives in one file and is easy to extend.
 - When a carrier changes its template, receipts land as `not_receipt`: nothing is lost, you add a sample and a parser tweak.
 
 ## Roadmap
 
-- Parsers for Orange Cash, InstaPay and bank transfer SMS with community samples.
+- Parsers for InstaPay and bank transfer SMS with community samples; matching Orange Cash receipts by sender name.
 - Multi-country phone normalisation.
 - Per-integrator API keys and webhook secrets.
 - Dashboard charts and CSV export.
