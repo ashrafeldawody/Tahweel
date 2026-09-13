@@ -41,7 +41,11 @@ The version comes from the `versionName` Gradle property (`./gradlew assembleRel
 
 ## Installing and configuring
 
-1. Copy the APK to the phone and install it (allow "unknown sources" for the file manager). It cannot come from the Play Store because of the `RECEIVE_SMS` permission.
+1. Install the APK. It cannot come from the Play Store because of the `RECEIVE_SMS` permission, and for the same reason Google Play Protect blocks it when it is sideloaded from a browser, a chat app or a file manager ("App blocked to protect your device", often with no *Install anyway* button). Either of these gets past that:
+   - **ADB** (recommended): enable Developer options → USB debugging on the phone, connect it, then `adb install -r tahweel-listener-<version>-release.apk` (`scripts/build-listener.ps1 -Install` does this for a local build). Play Protect does not intercept ADB installs.
+   - **Pause Play Protect**: Play Store → profile icon → Play Protect → settings → turn off *Scan apps with Play Protect*, install the APK from the file manager (allow "unknown sources" when asked), turn scanning back on. If Play Protect later lists the app, choose *Keep*.
+
+   A release-signed APK does not change this; the block is about the SMS permissions, not the signature.
 2. Open the app, enter the server URL (`https://tahweel.example.com`), paste `INGEST_TOKEN`, set a device name, **Save**, **Test connection** (expects "Connected, server time …").
 3. **Grant everything**: SMS (receive + read), notifications, ignore battery optimisation. The fourth row opens the vendor's background settings (Samsung: Battery → Background usage limits).
 4. Samsung / One UI specifics: add the app to **Never sleeping apps**, turn **Adaptive battery** off, lock the app in Recents, disable **Auto restart** schedules.

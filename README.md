@@ -137,7 +137,7 @@ Without Docker: `pnpm install`, `pnpm --filter @tahweel/ui build`, then `pnpm --
 
 A Samsung with One UI is the reference device; other vendors have equivalent switches.
 
-- Install the APK (sideload; the app needs `RECEIVE_SMS`, which the Play Store does not allow for this use).
+- Install the APK over ADB (`adb install -r …`) or with Play Protect scanning paused for a minute: the app needs `RECEIVE_SMS`, which the Play Store does not allow for this use and which makes Play Protect block a sideloaded install ("App blocked to protect your device"). Details in [docs/listener.md](docs/listener.md#installing-and-configuring).
 - In the app: server URL, `INGEST_TOKEN`, a device name → **Save** → **Test connection** → **Grant everything** (SMS, notifications, battery optimisation exemption).
 - Settings → Battery → Background usage limits: add Tahweel Listener to **Never sleeping apps**, turn **Adaptive battery** off; lock the app in Recents.
 - **No screen lock** (after a reboot the SMS receiver only runs before first unlock when the phone has no lock), **SIM PIN off**, auto-restart schedule off.
