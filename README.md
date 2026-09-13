@@ -36,9 +36,8 @@ In Egypt and similar markets, small businesses get paid through mobile wallets. 
 flowchart LR
   subgraph phone[Tahweel Listener - Android]
     R[SmsReceiver] --> Q[(SQLite queue)]
-    Q --> S[ForwarderService\nbatches of 50, backoff]
-    W[KeepAliveWorker\n15 min] --> S
-    S -- heartbeat 60s --> H
+    Q --> S[ForwarderService<br/>batches of 50, backoff]
+    W[KeepAliveWorker<br/>every 15 min] --> S
   end
   subgraph server[Tahweel server]
     I[POST /ingest/sms] --> P[parsers/*.parser.ts]
@@ -46,16 +45,17 @@ flowchart LR
     G -- sender id not on allowlist --> U[untrusted_sender]
     G -- older than max_age_hours --> ST[stale]
     G -- not a receipt --> N[not_receipt]
-    G -- ok --> M[matcher\nlock message -> claim intent]
+    G -- ok --> M[matcher<br/>lock message, claim intent]
     M -- no pending intent --> X[unmatched]
-    M -- matched --> WH[webhook deliveries\nHMAC-SHA256, retries]
+    M -- matched --> WH[webhook deliveries<br/>HMAC-SHA256, retries]
     H[POST /ingest/heartbeat] --> D[(devices)]
-    J[jobs: reconcile every N min\nwebhook retries\noffline sweep] --> M
+    J[jobs: reconcile, webhook retries,<br/>offline sweep] --> M
     J --> WH
-    A[/admin/* JWT] --> DB[(sqlite or postgres)]
-    API[/api/v1/intents X-Api-Key] --> M
+    A[admin API, JWT] --> DB[(sqlite or postgres)]
+    API[POST /api/v1/intents, X-Api-Key] --> M
   end
   S --> I
+  S -- heartbeat 60 s --> H
   WH --> YOU[your backend]
   YOU --> API
   UI[Admin dashboard] --> A
