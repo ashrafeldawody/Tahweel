@@ -1,6 +1,13 @@
 # Tahweel (تحويل)
 
-Self-hosted **mobile-wallet SMS payment confirmation**. A dedicated Android phone holding the SIM of your mobile wallet (Vodafone Cash, e& money, Orange Cash, …) forwards every incoming SMS to a server you run. The server parses wallet receipts, checks that they really came from the wallet operator, matches them against **payment intents** your own system registered through the API, and fires a **signed webhook** so you can grant whatever was paid for. Nobody reads screenshots on WhatsApp any more.
+**Turn a spare Android phone into a payment gateway for your mobile wallet.**
+
+Personal wallets such as Vodafone Cash, e& money or Orange Cash have no merchant API, but every transfer you receive arrives as an SMS from the operator. Tahweel is a self-hosted, open-source pipeline that makes that SMS usable by software: a dedicated Android phone holding the wallet SIM forwards every incoming message to a server you run; the server parses wallet receipts, checks that they really came from the operator, matches them against **payment intents** your own system registered through the API, and fires a **signed webhook** so you can grant whatever was paid for — the same integration shape as a card gateway, without the gateway. Nobody reads screenshots on WhatsApp any more.
+
+- **Self-hosted, no cloud, no account.** One container or one Node process; your data never leaves it (see [Your data stays with you](#your-data-stays-with-you)).
+- **Gateway-style API.** `POST /api/v1/intents`, receive `payment.matched`, or poll by reference. Signed webhooks with retries, Swagger UI, Postman collection.
+- **Operator dashboard.** Devices, every SMS with its verdict, intents, webhook deliveries, settings, with manual match / ignore / re-trust for the edge cases.
+- **Wallet templates as drop-in files.** Supporting a new operator's SMS format is one parser file plus real sample messages.
 
 ```
 customer pays 200 EGP to your wallet number
@@ -17,7 +24,7 @@ customer pays 200 EGP to your wallet number
 
 ## Why
 
-In Egypt and similar markets, small businesses get paid through mobile wallets. There is no merchant API for a personal wallet: the only trustworthy record of a transfer is the SMS the operator sends to the wallet phone. Today the customer transfers, screenshots the wallet app, sends the screenshot on WhatsApp, and a human compares it with the phone. Tahweel turns that phone into a durable SMS pipe and moves every rule (parsing, trust, matching, notifications) to a server you control, so a rule change is a deploy and never an APK reinstall.
+In Egypt and similar markets, small businesses get paid through mobile wallets. There is no merchant API for a personal wallet: the only trustworthy record of a transfer is the SMS the operator sends to the wallet phone. Today the customer transfers, screenshots the wallet app, sends the screenshot on WhatsApp, and a human compares it with the phone. Tahweel turns that phone into a payment gateway: the phone becomes a durable SMS pipe and every rule (parsing, trust, matching, notifications) moves to a server you control, so a rule change is a deploy and never an APK reinstall.
 
 ## What is in this repository
 
@@ -61,19 +68,58 @@ flowchart LR
   UI[Admin dashboard] --> A
 ```
 
-## 10-minute quickstart (docker compose)
+## 10-minute quickstart
+
+Prebuilt images are published to GitHub Container Registry for every release: `ghcr.io/ashrafeldawody/tahweel` with the tags `latest`, `<major.minor>` and `<major.minor.patch>`. The image contains the server and the dashboard; its only state is the `/app/data` volume (SQLite) unless `DATABASE_URL` points at PostgreSQL. The listener APK for the phone is attached to the same [release](https://github.com/ashrafeldawody/tahweel/releases/latest).
+
+### Option A: run the image, nothing to clone
+
+```bash
+export INGEST_TOKEN=$(openssl rand -hex 32) API_KEY=$(openssl rand -hex 32) ADMIN_PASSWORD='choose-a-long-password'
+docker run -d --name tahweel --restart unless-stopped \
+  -p 3000:3000 -v tahweel-data:/app/data \
+  -e INGEST_TOKEN -e API_KEY -e ADMIN_PASSWORD \
+  ghcr.io/ashrafeldawody/tahweel:latest
+echo "phone token: $INGEST_TOKEN"
+```
+
+Or as a compose file next to your other services:
+
+```yaml
+services:
+  tahweel:
+    image: ghcr.io/ashrafeldawody/tahweel:0.1
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      INGEST_TOKEN: change-me-32-chars-minimum-for-the-phone
+      API_KEY: change-me-32-chars-minimum-for-your-backend
+      ADMIN_PASSWORD: change-me-dashboard-password
+    volumes:
+      - ./tahweel-data:/app/data
+```
+
+Pin a version tag in production and upgrade with `docker compose pull && docker compose up -d`; migrations run on boot. Every variable is listed in [docs/deploy.md](docs/deploy.md). The webhook URL and secret can be set here (`WEBHOOK_URL` + `WEBHOOK_SECRET`) or later on the dashboard's Settings page.
+
+### Option B: clone the repository
+
+Use this for the bundled compose file with its PostgreSQL profile, or to build from source.
 
 1. Clone and create the environment file:
    ```bash
    git clone https://github.com/ashrafeldawody/tahweel.git && cd tahweel
    cp .env.example .env
    ```
-2. Edit `.env`: set three secrets (`INGEST_TOKEN`, `API_KEY`, `ADMIN_PASSWORD`). Generate secrets with `openssl rand -hex 32`. The webhook URL and secret can go here too (`WEBHOOK_URL` + `WEBHOOK_SECRET`) or be entered later on the dashboard's Settings page.
+2. Edit `.env`: set three secrets (`INGEST_TOKEN`, `API_KEY`, `ADMIN_PASSWORD`). Generate secrets with `openssl rand -hex 32`.
 3. Start:
    ```bash
    docker compose pull && docker compose up -d
    ```
-   The server listens on `http://localhost:3000`, keeps its SQLite file in `./data/`, and applies migrations on boot. Prefer PostgreSQL? `docker compose --profile postgres up -d` and set `DATABASE_URL=postgres://tahweel:tahweel@postgres:5432/tahweel`.
+   The server listens on `http://localhost:3000`, keeps its SQLite file in `./data/`, and applies migrations on boot. Prefer PostgreSQL? `docker compose --profile postgres up -d` and set `DATABASE_URL=postgres://tahweel:tahweel@postgres:5432/tahweel`. To build from source instead of pulling: `docker compose up -d --build`.
+
+### Then, with either option
+
 4. Open the dashboard at `http://localhost:3000/` and log in with `ADMIN_PASSWORD`. Swagger is at `/docs`, the OpenAPI JSON at `/docs-json`, health at `/health`.
 5. Install the listener APK from the [latest release](https://github.com/ashrafeldawody/tahweel/releases/latest) (or build it yourself, see [docs/listener.md](docs/listener.md)), open it on the phone, enter your server URL and `INGEST_TOKEN`, grant everything, press **Test connection**. The phone appears under **Devices**.
 6. Send yourself a 1 EGP transfer from another wallet: it shows under **Messages** as `unmatched` within a minute. Ignore it.
@@ -109,6 +155,20 @@ A Samsung with One UI is the reference device; other vendors have equivalent swi
 7. **Webhook**: `payment.matched` with the intent and the message, signed with the webhook secret, retried with backoff for up to 8 attempts. Everything else is visible in the dashboard where an operator can match by hand, ignore, reopen or re-trust.
 
 ## Security model
+
+### Your data stays with you
+
+Tahweel has no cloud component, no account, no telemetry and no third-party SDK in the app or the server; the code is MIT-licensed and small enough to audit. The complete list of network traffic is:
+
+| From | To | What |
+|---|---|---|
+| The listener phone | **your** server URL, nothing else | Sender id, text and timestamp of the SMS the phone receives, plus a heartbeat (battery, network, queue size) |
+| Your server | the webhook URL **you** configure | Signed `payment.matched` and device events |
+| Your server | your own SMTP server, only if `SMTP_URL` is set | Operator alerts |
+
+Receipts, intents, deliveries and settings live in a SQLite file or a PostgreSQL database on your machine; back them up, export them or delete them as you please. Nobody else — not the wallet operator, not a payment provider, not the authors of this project — can see who paid you what. Because the phone forwards every SMS it receives, dedicate a phone to the wallet SIM and keep the server URL on HTTPS.
+
+### Credentials and gates
 
 - Three independent credentials: `INGEST_TOKEN` (phone → `/ingest/*`, bearer), `API_KEY` (your backend → `/api/v1/*`, `X-Api-Key`), `ADMIN_PASSWORD` (dashboard → JWT for `/admin/*`). All compared timing-safe. Rotate by changing the env value and restarting (then update the phone / your backend); set `JWT_SECRET` explicitly if you want admin sessions to survive a password change.
 - A receipt-looking SMS proves nothing by itself: anyone can text the phone "تم استلام مبلغ …". Only messages whose **originating address** is on the trusted sender allowlist can auto-match. Numeric short codes must be listed exactly.
