@@ -24,7 +24,7 @@ The APK lands in `apps/listener/app/build/outputs/apk/release/tahweel-listener-<
 
 ## Install
 
-Copy the APK to the phone (or use `--install` / `-Install` with the phone connected over adb) and open it. Enter the server URL, the ingest token (`INGEST_TOKEN` on the server), an optional device name, then tap **Save** and **Test connection**.
+Play Protect usually blocks this APK when it is opened from a file manager, because of the SMS permission. Install it over ADB instead (Developer options → USB debugging, then `adb install -r <apk>`, or `--install` / `-Install` with the build script); step-by-step guide in [docs/listener.md](../../docs/listener.md#installing-with-adb). Then open the app. Enter the server URL, the ingest token (`INGEST_TOKEN` on the server), an optional device name, then tap **Save** and **Test connection**.
 
 ## Setup checklist
 

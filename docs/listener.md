@@ -41,17 +41,55 @@ The version comes from the `versionName` Gradle property (`./gradlew assembleRel
 
 ## Installing and configuring
 
-1. Install the APK. It cannot come from the Play Store because of the `RECEIVE_SMS` permission, and for the same reason Google Play Protect blocks it when it is sideloaded from a browser, a chat app or a file manager ("App blocked to protect your device", often with no *Install anyway* button). Either of these gets past that:
-   - **ADB** (recommended): enable Developer options → USB debugging on the phone, connect it, then `adb install -r tahweel-listener-<version>-release.apk` (`scripts/build-listener.ps1 -Install` does this for a local build). Play Protect does not intercept ADB installs.
+1. Install the APK from the [latest release](https://github.com/ashrafeldawody/tahweel/releases/latest). It cannot come from the Play Store because of the `RECEIVE_SMS` permission, and for the same reason Google Play Protect often blocks it when it is sideloaded from a browser, a chat app or a file manager ("App blocked to protect your device", often with no *Install anyway* button). Either of these gets past that:
+   - **ADB** (recommended): see [Installing with ADB](#installing-with-adb) below. Play Protect does not intercept ADB installs.
    - **Pause Play Protect**: Play Store → profile icon → Play Protect → settings → turn off *Scan apps with Play Protect*, install the APK from the file manager (allow "unknown sources" when asked), turn scanning back on. If Play Protect later lists the app, choose *Keep*.
 
-   A release-signed APK does not change this; the block is about the SMS permissions, not the signature.
+   A release-signed APK does not change this; the block is about the SMS permission, not the signature.
 2. Open the app, enter the server URL (`https://tahweel.example.com`), paste `INGEST_TOKEN`, set a device name, **Save**, **Test connection** (expects "Connected, server time …").
-3. **Grant everything**: SMS (receive + read), notifications, ignore battery optimisation. The fourth row opens the vendor's background settings (Samsung: Battery → Background usage limits).
+3. **Grant everything**: SMS, notifications, ignore battery optimisation. The fourth row opens the vendor's background settings (Samsung: Battery → Background usage limits).
 4. Samsung / One UI specifics: add the app to **Never sleeping apps**, turn **Adaptive battery** off, lock the app in Recents, disable **Auto restart** schedules.
 5. **No screen lock**, **SIM PIN off**. After a reboot Android only delivers SMS to apps before the first unlock when the phone has no credential-encrypted lock.
 6. Keep the phone on a charger with Wi-Fi and mobile data on. The notification "Tahweel listener · Listening" must stay visible.
 7. Reboot once and check the Devices page: the heartbeat should resume within a minute.
+
+## Installing with ADB
+
+ADB (Android Debug Bridge) installs the APK from a computer over USB. Google Play Protect does not scan ADB installs, so this is the reliable path when the phone refuses the APK.
+
+**On the phone**
+
+1. Enable Developer options: Settings → About phone → Software information → tap **Build number** seven times and enter the PIN if asked. On stock Android and most other vendors, **Build number** sits directly under About phone.
+2. Settings → Developer options → turn on **USB debugging**.
+3. Samsung (One UI 6 and newer): Settings → Security and privacy → **Auto Blocker** → off. While it is on, it blocks USB commands and app installs from outside the Galaxy Store and Play Store.
+
+**On the computer**
+
+4. Install the Android SDK Platform Tools:
+   - Windows: `winget install Google.PlatformTools`, or download the [Platform Tools zip](https://developer.android.com/tools/releases/platform-tools), unzip it and open a terminal in that folder. Samsung phones may also need the [Samsung USB driver](https://developer.samsung.com/android-usb-driver).
+   - macOS: `brew install android-platform-tools`
+   - Debian / Ubuntu: `sudo apt install adb`
+5. Download `tahweel-listener-<version>-release.apk` from the [latest release](https://github.com/ashrafeldawody/tahweel/releases/latest).
+6. Connect the phone with a USB cable that carries data (not a charge-only cable). If the phone asks what the USB connection is for, choose **File transfer**.
+7. Run `adb devices`. The phone shows **Allow USB debugging?**: tick **Always allow from this computer** and tap **Allow**. Run `adb devices` again; it must list the phone as `device`.
+8. Install:
+   ```bash
+   adb install -r tahweel-listener-<version>-release.apk
+   ```
+   `-r` keeps the app's data when upgrading. The command prints `Success`, and the app appears in the launcher. For a local build, `scripts/build-listener.ps1 -Install` (or `scripts/build-listener.sh --install`) builds and runs this step for you.
+9. Optional: turn **USB debugging** off again and, on Samsung, **Auto Blocker** back on. The installed app keeps working.
+
+**Without a cable** (Android 11+, phone and computer on the same Wi-Fi): Developer options → **Wireless debugging** → on → **Pair device with pairing code**, then `adb pair <ip>:<pairing-port>` with the code shown, `adb connect <ip>:<port>` with the port shown on the Wireless debugging screen, and the same `adb install -r …`.
+
+**Troubleshooting**
+
+| Symptom | Fix |
+|---|---|
+| `adb devices` lists nothing | Try another cable or port, pick **File transfer** on the phone, install the vendor USB driver on Windows |
+| Phone listed as `unauthorized` | Unlock the phone and accept the **Allow USB debugging?** prompt; if it never appears, Developer options → **Revoke USB debugging authorisations**, unplug and plug again |
+| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | The installed copy was signed with a different key. `adb uninstall com.tahweel.listener` (this clears its settings and queue), then install again |
+| `INSTALL_FAILED_USER_RESTRICTED` or the install is blocked on Samsung | Turn off **Auto Blocker**; on Xiaomi also turn on Developer options → **Install via USB** |
+| `adb: command not found` | Platform Tools are not on the `PATH`; run the command from the unzipped folder (`.\adb` on Windows) |
 
 ## Operating
 

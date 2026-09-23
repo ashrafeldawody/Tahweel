@@ -22,9 +22,41 @@ Tahweel is one Node process plus a database file (SQLite) or a PostgreSQL connec
 
 Generate secrets: `openssl rand -hex 32`.
 
-## Docker compose (recommended)
+## Docker without cloning
+
+The image `ghcr.io/ashrafeldawody/tahweel` is published for every release with the tags `latest`, `<major.minor>` and `<major.minor.patch>`. It contains the server and the dashboard; its only state is the `/app/data` volume (SQLite) unless `DATABASE_URL` points at PostgreSQL.
 
 ```bash
+export INGEST_TOKEN=$(openssl rand -hex 32) API_KEY=$(openssl rand -hex 32) ADMIN_PASSWORD='choose-a-long-password'
+docker run -d --name tahweel --restart unless-stopped \
+  -p 3000:3000 -v tahweel-data:/app/data \
+  -e INGEST_TOKEN -e API_KEY -e ADMIN_PASSWORD \
+  ghcr.io/ashrafeldawody/tahweel:latest
+```
+
+Or as a compose file next to your other services:
+
+```yaml
+services:
+  tahweel:
+    image: ghcr.io/ashrafeldawody/tahweel:0.2
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      INGEST_TOKEN: change-me-32-chars-minimum-for-the-phone
+      API_KEY: change-me-32-chars-minimum-for-your-backend
+      ADMIN_PASSWORD: change-me-dashboard-password
+    volumes:
+      - ./tahweel-data:/app/data
+```
+
+Pin a version tag in production and upgrade with `docker compose pull && docker compose up -d`; migrations run on boot.
+
+## Docker compose from the repository (recommended)
+
+```bash
+git clone https://github.com/ashrafeldawody/tahweel.git && cd tahweel
 cp .env.example .env    # fill the secrets
 docker compose pull && docker compose up -d
 docker compose logs -f tahweel
