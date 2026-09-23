@@ -21,3 +21,6 @@ apps/listener/.idea/
 *.jks
 *.keystore
 packages/server/generated/
+docker-compose.override.yml
+*.apk
+

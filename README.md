@@ -8,6 +8,7 @@ Personal wallets such as Vodafone Cash, e& money or Orange Cash have no merchant
 - **Gateway-style API.** `POST /api/v1/intents`, receive `payment.matched`. Swagger UI and a Postman collection included.
 - **Dashboard.** Devices, every SMS with its verdict, intents, webhook deliveries, settings, manual matching.
 - **New wallets are one file.** A parser plus sample messages.
+- **Model Context Protocol (MCP).** Connect AI agents (Claude Code, Cursor, Windsurf) directly to your gateway via `@tahweel/mcp` ([packages/mcp](packages/mcp)).
 
 ```
 customer pays 200 EGP ──▶ operator SMS ──▶ Listener phone ──▶ Tahweel server ──▶ webhook ──▶ your system
