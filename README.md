@@ -30,7 +30,7 @@ Open `http://localhost:3000/` and log in with `ADMIN_PASSWORD`. Swagger is at `/
 
 **2. Install the app on the phone**
 
-Download `tahweel-listener-<version>-release.apk` from the [latest release](https://github.com/ashrafeldawody/tahweel/releases/latest), open it, enter your server URL and `INGEST_TOKEN`, tap **Grant everything** and **Test connection**. The phone appears under **Devices**.
+Download `tahweel-listener-<version>-release.apk` from the [latest release](https://github.com/ashrafeldawody/Tahweel/releases/latest), open it, enter your server URL and `INGEST_TOKEN`, tap **Grant everything** and **Test connection**. The phone appears under **Devices**.
 
 **3. Create a payment intent from your backend**
 

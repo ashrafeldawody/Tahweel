@@ -19,7 +19,7 @@ Protocol: `POST {server}/ingest/sms` and `POST {server}/ingest/heartbeat` with `
 
 ## Building
 
-Every tagged release ships a prebuilt `tahweel-listener-<version>-release.apk` on the [releases page](https://github.com/ashrafeldawody/tahweel/releases); building is only needed for local changes.
+Every tagged release ships a prebuilt `tahweel-listener-<version>-release.apk` on the [releases page](https://github.com/ashrafeldawody/Tahweel/releases); building is only needed for local changes.
 
 Requirements: a JDK 17+ (Android Studio's bundled JBR works, including JDK 25) and the Android SDK (platform 35, build-tools). Gradle 9.2.1 / AGP 8.13.2 / Kotlin 2.2.21 are pinned by the wrapper.
 
@@ -41,7 +41,7 @@ The version comes from the `versionName` Gradle property (`./gradlew assembleRel
 
 ## Installing and configuring
 
-1. Install the APK from the [latest release](https://github.com/ashrafeldawody/tahweel/releases/latest). It cannot come from the Play Store because of the `RECEIVE_SMS` permission, and for the same reason Google Play Protect often blocks it when it is sideloaded from a browser, a chat app or a file manager ("App blocked to protect your device", often with no *Install anyway* button). Either of these gets past that:
+1. Install the APK from the [latest release](https://github.com/ashrafeldawody/Tahweel/releases/latest). It cannot come from the Play Store because of the `RECEIVE_SMS` permission, and for the same reason Google Play Protect often blocks it when it is sideloaded from a browser, a chat app or a file manager ("App blocked to protect your device", often with no *Install anyway* button). Either of these gets past that:
    - **ADB** (recommended): see [Installing with ADB](#installing-with-adb) below. Play Protect does not intercept ADB installs.
    - **Pause Play Protect**: Play Store → profile icon → Play Protect → settings → turn off *Scan apps with Play Protect*, install the APK from the file manager (allow "unknown sources" when asked), turn scanning back on. If Play Protect later lists the app, choose *Keep*.
 
@@ -69,7 +69,7 @@ ADB (Android Debug Bridge) installs the APK from a computer over USB. Google Pla
    - Windows: `winget install Google.PlatformTools`, or download the [Platform Tools zip](https://developer.android.com/tools/releases/platform-tools), unzip it and open a terminal in that folder. Samsung phones may also need the [Samsung USB driver](https://developer.samsung.com/android-usb-driver).
    - macOS: `brew install android-platform-tools`
    - Debian / Ubuntu: `sudo apt install adb`
-5. Download `tahweel-listener-<version>-release.apk` from the [latest release](https://github.com/ashrafeldawody/tahweel/releases/latest).
+5. Download `tahweel-listener-<version>-release.apk` from the [latest release](https://github.com/ashrafeldawody/Tahweel/releases/latest).
 6. Connect the phone with a USB cable that carries data (not a charge-only cable). If the phone asks what the USB connection is for, choose **File transfer**.
 7. Run `adb devices`. The phone shows **Allow USB debugging?**: tick **Always allow from this computer** and tap **Allow**. Run `adb devices` again; it must list the phone as `device`.
 8. Install:

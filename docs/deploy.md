@@ -56,7 +56,7 @@ Pin a version tag in production and upgrade with `docker compose pull && docker 
 ## Docker compose from the repository (recommended)
 
 ```bash
-git clone https://github.com/ashrafeldawody/tahweel.git && cd tahweel
+git clone https://github.com/ashrafeldawody/Tahweel.git && cd Tahweel
 cp .env.example .env    # fill the secrets
 docker compose pull && docker compose up -d
 docker compose logs -f tahweel
