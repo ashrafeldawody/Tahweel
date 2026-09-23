@@ -57,7 +57,7 @@ Rotating: change the env value, restart the server, update the phone (Settings s
 
 1. Show the wallet number and the exact amount. Ask for the customer's wallet number (prefill from their profile).
 2. `POST /api/v1/intents` when they press "I have sent the transfer".
-3. Poll `GET /api/v1/intents/by-reference/...` every 10-15 s from the browser, or wait for the webhook on the server. Show a progress state and, after ~10 minutes, a fallback (WhatsApp / support link) while keeping the intent open until it expires.
+3. Poll `GET /api/v1/intents/by-reference/...` every 10-15 s from your backend (never from the browser: the API key must stay server-side), or wait for the webhook on the server. The browser polls your backend. Show a progress state and, after ~10 minutes, a fallback (WhatsApp / support link) while keeping the intent open until it expires.
 
 ## Ingest API (`/ingest`)
 

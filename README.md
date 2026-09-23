@@ -61,6 +61,7 @@ Wireless debugging, troubleshooting and the alternative (pausing Play Protect fo
 
 | Guide | What's inside |
 |---|---|
+| [FAQ](docs/faq.md) | Paying before the order exists, polling, authentication, transaction numbers, installing the app |
 | [How it works](docs/how-it-works.md) | Architecture, matching rules, limits, roadmap |
 | [API](docs/api.md) | Intents, polling, ingest protocol, admin API |
 | [Webhooks](docs/webhooks.md) | Events, headers, retries, signature verification (Node, PHP) |

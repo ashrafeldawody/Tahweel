@@ -3,6 +3,7 @@
 | Document | Read it when |
 |---|---|
 | [../README.md](../README.md) | You want the overview and the quickstart |
+| [faq.md](faq.md) | You have a quick question (paying first, polling, authentication, installing the app) |
 | [how-it-works.md](how-it-works.md) | You want the architecture, the matching rules, the limits and the roadmap |
 | [security.md](security.md) | You want to know where your data goes and how credentials and gates protect it |
 | [api.md](api.md) | You integrate your backend (intents, polling, ingest protocol, admin API) |
