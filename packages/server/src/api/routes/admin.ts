@@ -119,6 +119,18 @@ const matchMessage = createRoute({
   responses: { 200: jsonResponse(MessageSchema, 'Matched message'), 400: ErrorResponses[400], 401: ErrorResponses[401], 404: ErrorResponses[404], 409: ErrorResponses[409] },
 });
 
+const approveMessage = createRoute({
+  method: 'post',
+  path: '/admin/messages/{id}/approve',
+  tags: [TAG],
+  summary: 'Approve a held message after checking the wallet',
+  description:
+    'Releases a held receipt to automatic matching and makes its balance the new confirmed balance. Only approve after the wallet app shows the transfer.',
+  security: SECURITY,
+  request: { params: IdParam },
+  responses: { 200: jsonResponse(MessageSchema, 'Approved message'), 401: ErrorResponses[401], 404: ErrorResponses[404], 409: ErrorResponses[409] },
+});
+
 const ignoreMessage = createRoute({
   method: 'post',
   path: '/admin/messages/{id}/ignore',
@@ -196,10 +208,10 @@ const reconcile = createRoute({
   path: '/admin/reconcile',
   tags: [TAG],
   summary: 'Re-run matching now',
-  description: 'Re-trusts messages whose sender id is now allowed, expires old intents, demotes stale receipts and matches everything unmatched.',
+  description: 'Re-trusts messages whose sender id is now allowed, expires old intents, demotes stale receipts, releases held receipts that now pass verification and matches everything unmatched.',
   security: SECURITY,
   responses: {
-    200: jsonResponse(z.object({ retrusted: z.number(), expired_intents: z.number(), demoted_stale: z.number(), matched: z.number() }), 'Summary'),
+    200: jsonResponse(z.object({ retrusted: z.number(), expired_intents: z.number(), demoted_stale: z.number(), released: z.number(), matched: z.number() }), 'Summary'),
     401: ErrorResponses[401],
   },
 });
@@ -343,6 +355,11 @@ export function adminRoutes(ctx: AppContext) {
     const { id } = c.req.valid('param');
     const { intent_id } = c.req.valid('json');
     return c.json(serializeMessage(await ctx.matcher.manualMatch(id, intent_id)), 200);
+  });
+
+  router.openapi(approveMessage, async (c) => {
+    const { id } = c.req.valid('param');
+    return c.json(serializeMessage(await ctx.matcher.approve(id)), 200);
   });
 
   router.openapi(ignoreMessage, async (c) => {

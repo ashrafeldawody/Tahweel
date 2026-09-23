@@ -98,7 +98,7 @@ describe('admin and ingest HTTP flows', () => {
 
     const reconcile = await t.request('/admin/reconcile', { method: 'POST', auth: 'admin' });
     expect(reconcile.status).toBe(200);
-    expect(await reconcile.json()).toEqual({ retrusted: 0, expired_intents: 0, demoted_stale: 0, matched: 0 });
+    expect(await reconcile.json()).toEqual({ retrusted: 0, expired_intents: 0, demoted_stale: 0, released: 0, matched: 0 });
 
     const test = await t.request('/admin/webhooks/test', { method: 'POST', auth: 'admin', json: {} });
     expect(test.status).toBe(200);

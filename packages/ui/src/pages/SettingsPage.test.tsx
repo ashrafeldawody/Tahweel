@@ -89,3 +89,36 @@ describe('SettingsPage webhook fields', () => {
     expect(calls).toHaveLength(0);
   });
 });
+
+describe('SettingsPage fake SMS protection', () => {
+  it('saves the balance check, its margin, the review limit and the phone filter', async () => {
+    const calls = renderSettings(settingsFixture);
+    const limit = await screen.findByLabelText('Review receipts above (EGP)');
+    const balanceSwitch = screen.getByRole('switch', { name: /verify the wallet balance/i });
+    expect(balanceSwitch).not.toBeChecked();
+    const margin = screen.getByLabelText('Balance margin (EGP)');
+    expect(margin).toHaveValue('0.02');
+    expect(margin).toBeDisabled();
+
+    await userEvent.click(balanceSwitch);
+    await userEvent.clear(margin);
+    await userEvent.type(margin, '0.01');
+
+    await userEvent.type(limit, '1500');
+    await userEvent.click(screen.getByRole('switch', { name: /filter sms on the phone/i }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0].body).toMatchObject({ verify_balance: true, balance_margin: 0.01, review_above_amount: 1500, phone_filter: false });
+  });
+
+  it('sends null when the review limit is left empty', async () => {
+    const calls = renderSettings({ ...settingsFixture, review_above_amount: 800 });
+    const limit = await screen.findByLabelText('Review receipts above (EGP)');
+    await userEvent.clear(limit);
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0].body).toMatchObject({ review_above_amount: null });
+  });
+});

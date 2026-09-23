@@ -57,6 +57,9 @@ export function serializeMessage(row: SmsMessageRow) {
     matched_at: row.matched_at,
     matched_by: row.matched_by,
     note: row.note,
+    verification: row.verification,
+    expected_balance_cents: row.expected_balance_cents,
+    reviewed_at: row.reviewed_at,
   };
 }
 

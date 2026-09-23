@@ -2,6 +2,7 @@ import { createRoute } from '@hono/zod-openapi';
 import { ingestAuth } from '../../auth/middleware.js';
 import { nowIso } from '../../config/time.js';
 import type { AppContext } from '../../context.js';
+import { forwardingRules } from '../../services/forwarding.js';
 import { createRouter } from '../hono.js';
 import {
   ErrorResponses,
@@ -33,7 +34,8 @@ const heartbeat = createRoute({
   path: '/ingest/heartbeat',
   tags: [TAG],
   summary: 'Device heartbeat',
-  description: 'Sent every 60 s by the listener. Missing heartbeats past the offline threshold raise a device.offline event.',
+  description:
+    'Sent every 60 s by the listener. Missing heartbeats past the offline threshold raise a device.offline event. The response carries the forwarding rules the phone applies to new SMS.',
   security: SECURITY,
   request: { body: jsonBody(HeartbeatRequest) },
   responses: { 200: jsonResponse(HeartbeatResponse, 'Acknowledged'), 400: ErrorResponses[400], 401: ErrorResponses[401] },
@@ -51,8 +53,8 @@ export function ingestRoutes(ctx: AppContext) {
 
   router.openapi(heartbeat, async (c) => {
     const body = c.req.valid('json');
-    const device = await ctx.devices.heartbeat(body);
-    return c.json({ ok: true as const, device, server_time: nowIso() }, 200);
+    const [device, settings] = await Promise.all([ctx.devices.heartbeat(body), ctx.settings.get()]);
+    return c.json({ ok: true as const, device, forwarding: forwardingRules(settings), server_time: nowIso() }, 200);
   });
 
   return router;

@@ -1,5 +1,5 @@
 import { z } from '@hono/zod-openapi';
-import { DELIVERY_STATUSES, INTENT_STATUSES, MESSAGE_STATUSES, WEBHOOK_EVENTS } from '../db/schema.js';
+import { DELIVERY_STATUSES, INTENT_STATUSES, MESSAGE_STATUSES, VERIFICATIONS, WEBHOOK_EVENTS } from '../db/schema.js';
 
 const ISO_EXAMPLE = '2026-09-13T10:15:30.000Z';
 const FINGERPRINT_EXAMPLE = '3b1c9d0f5e6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c';
@@ -29,6 +29,12 @@ export const MessageStatus = z.enum(MESSAGE_STATUSES).openapi('MessageStatus');
 export const IntentStatus = z.enum(INTENT_STATUSES).openapi('IntentStatus');
 export const DeliveryStatus = z.enum(DELIVERY_STATUSES).openapi('DeliveryStatus');
 export const WebhookEventName = z.enum(WEBHOOK_EVENTS).openapi('WebhookEvent');
+export const BalanceVerification = z
+  .enum(VERIFICATIONS)
+  .openapi('BalanceVerification', {
+    description:
+      'verified: the balance equals the last confirmed balance plus the amount, within the balance margin. mismatch: it does not. no_balance: the SMS carries no balance. no_history: there is no confirmed balance yet to compare with.',
+  });
 
 export const IncomingSmsSchema = z
   .object({
@@ -101,8 +107,16 @@ export const DeviceSchema = z
   })
   .openapi('Device');
 
+export const ForwardingRules = z
+  .object({
+    filter: z.boolean().openapi({ example: true, description: 'When false the phone forwards every SMS' }),
+    senders: z.array(z.string()).openapi({ example: ['e& money', 'vf-cash'], description: 'Trusted sender ids, normalised (trimmed, lower case)' }),
+    keywords: z.array(z.string()).openapi({ example: ['مبلغ', 'جنيه', 'egp'], description: 'SMS whose lower-cased body contains one of these are forwarded even from other senders' }),
+  })
+  .openapi('ForwardingRules');
+
 export const HeartbeatResponse = z
-  .object({ ok: z.literal(true), device: DeviceSchema, server_time: IsoDateTime })
+  .object({ ok: z.literal(true), device: DeviceSchema, forwarding: ForwardingRules, server_time: IsoDateTime })
   .openapi('HeartbeatResponse');
 
 export const MetadataSchema = z.record(z.string(), z.unknown()).openapi({ example: { order_id: 'A-1001', customer: 'Ahmed' } });
@@ -178,7 +192,10 @@ export const MessageSchema = z
     intent_id: z.string().nullable(),
     matched_at: z.string().nullable(),
     matched_by: z.string().nullable().openapi({ example: 'auto' }),
-    note: z.string().nullable(),
+    note: z.string().nullable().openapi({ description: 'For held messages, the reason: balance_mismatch, no_balance, no_balance_history or above_review_limit' }),
+    verification: BalanceVerification.nullable(),
+    expected_balance_cents: z.number().int().nullable().openapi({ example: 42990, description: 'Last confirmed balance plus this amount, when known' }),
+    reviewed_at: z.string().nullable().openapi({ description: 'When an operator approved or manually matched the message' }),
   })
   .openapi('SmsMessage');
 
@@ -213,6 +230,10 @@ export const SettingsSchema = z
     offline_alert_minutes: z.number().int().openapi({ example: 30 }),
     webhook_unmatched_receipts: z.boolean().openapi({ example: false }),
     email_alerts: z.boolean().openapi({ example: true }),
+    verify_balance: z.boolean().openapi({ example: false, description: 'Hold receipts whose wallet balance cannot be confirmed' }),
+    balance_margin: z.number().openapi({ example: 0.02, description: 'Allowed difference between the expected and the stated balance, in major units' }),
+    review_above_amount: z.number().nullable().openapi({ example: 1000, description: 'Hold receipts above this amount (major units) for review; null turns it off' }),
+    phone_filter: z.boolean().openapi({ example: true, description: 'Tell listener phones to forward only trusted senders and money-looking SMS' }),
     webhook_url: z.string().nullable().openapi({ example: 'https://your-app.example.com/webhooks/tahweel', description: 'Default target for events; null when neither the setting nor WEBHOOK_URL is set' }),
     webhook_secret_set: z.boolean().openapi({ example: true, description: 'Whether an HMAC secret is available (the secret itself is never returned)' }),
   })
@@ -229,6 +250,10 @@ export const SettingsPatchRequest = z
     offline_alert_minutes: z.number().int().min(5).max(24 * 60).optional(),
     webhook_unmatched_receipts: z.boolean().optional(),
     email_alerts: z.boolean().optional(),
+    verify_balance: z.boolean().optional(),
+    balance_margin: z.number().min(0).max(100).multipleOf(0.01).optional(),
+    review_above_amount: z.number().positive().max(100_000_000).nullable().optional(),
+    phone_filter: z.boolean().optional(),
     webhook_url: z.string().trim().url().max(2048).nullable().optional().openapi({ description: 'null falls back to WEBHOOK_URL from the environment' }),
     webhook_secret: z.string().min(16).max(256).nullable().optional().openapi({ description: 'Write-only; null falls back to WEBHOOK_SECRET from the environment' }),
   })

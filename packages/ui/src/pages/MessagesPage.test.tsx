@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { TOKEN_STORAGE_KEY } from '../auth/token';
@@ -41,5 +41,29 @@ describe('MessagesPage', () => {
     expect(screen.getByRole('button', { name: /^match$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /ignore/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /reopen/i })).not.toBeInTheDocument();
+  });
+
+  it('explains why a receipt is held and approves it', async () => {
+    window.localStorage.setItem(TOKEN_STORAGE_KEY, 'jwt-123');
+    const held = messageFixture({ status: 'held', note: 'balance_mismatch', verification: 'mismatch', balance_cents: 1234500, expected_balance_cents: 42990 });
+    const { calls } = mockFetch({
+      'GET /admin/messages': { body: { items: [held], total: 1, limit: 50, offset: 0, counters: { held: 1 } } },
+      'GET /admin/devices': { body: { items: [deviceFixture] } },
+      'POST /admin/messages/msg-1/approve': { body: { ...held, status: 'unmatched', note: null, reviewed_at: '2026-09-13T10:20:00.000Z' } },
+    });
+
+    renderWithProviders(<MessagesPage />, { route: '/app/messages', settings: settingsFixture });
+
+    const rows = await screen.findAllByTestId('message-row');
+    expect(within(rows[0]).getByText('held')).toBeInTheDocument();
+    await userEvent.click(rows[0]);
+
+    expect(await screen.findByText('Held for review')).toBeInTheDocument();
+    expect(screen.getByText(/does not equal the last confirmed wallet balance/)).toBeInTheDocument();
+    expect(screen.getByText('does not add up')).toBeInTheDocument();
+    expect(screen.getByText('429.90 EGP')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /approve/i }));
+    await waitFor(() => expect(calls.some((call) => call.method === 'POST' && call.path === '/admin/messages/msg-1/approve')).toBe(true));
   });
 });

@@ -1,12 +1,12 @@
 # Tahweel Listener (Android)
 
-The listener is a small Kotlin app (`apps/listener`) that turns a spare Android phone into a durable SMS pipe. It knows nothing about wallets or matching: it forwards **every** incoming SMS to the server and lets the server decide.
+The listener is a small Kotlin app (`apps/listener`) that turns a spare Android phone into a durable SMS pipe. It knows nothing about wallets or matching: it forwards the SMS the server asks for and lets the server decide what they mean.
 
 ## How it works
 
 | Piece | Role |
 |---|---|
-| `SmsReceiver` | `SMS_RECEIVED` broadcast (priority 999). Joins multipart messages, computes `fingerprint = sha256(address\|body\|smsc_timestamp_ms)`, stores the message in a SQLite queue and starts the service. |
+| `SmsReceiver` | `SMS_RECEIVED` broadcast (priority 999). Joins multipart messages, applies the forwarding rules, computes `fingerprint = sha256(address\|body\|smsc_timestamp_ms)`, stores the message in a SQLite queue and starts the service. |
 | `ForwarderService` | Foreground service (`specialUse` type, partial wake lock). Drains the queue in batches of 50 with exponential backoff (5 s → 5 min) and sends a heartbeat every 60 s. |
 | `KeepAliveWorker` | WorkManager job every 15 minutes: uploads anything pending, restarts the service if it died. Also used as an expedited fallback when Android refuses a foreground start from the background. |
 | `BootReceiver` | Restarts everything after boot / app update. |
@@ -16,6 +16,14 @@ The listener is a small Kotlin app (`apps/listener`) that turns a spare Android 
 | `LogsActivity` | Persistent log with refresh / copy / share / clear. |
 
 Protocol: `POST {server}/ingest/sms` and `POST {server}/ingest/heartbeat` with `Authorization: Bearer <INGEST_TOKEN>`; timestamps are ISO 8601 UTC. See [api.md](api.md#ingest-api-ingest).
+
+## What the phone forwards
+
+Every heartbeat response carries the forwarding rules: the trusted sender ids from Settings and a short list of money words (`مبلغ`, `جنيه`, `جنية`, `ج.م`, `رصيد`, `egp`, `balance`, `amount`). The phone forwards an SMS when its sender id is trusted **or** its text contains one of those words, and keeps everything else (OTPs, personal texts) on the phone. The money words are there so that receipts still reach the server as `untrusted_sender` when an operator starts using a new sender id, instead of being dropped silently.
+
+- Until the first successful heartbeat the phone has no rules and forwards everything.
+- Turning **Filter SMS on the phone** off in Settings makes every phone forward everything again within a minute.
+- The main screen shows the current rules (`forwarding`) and how many SMS were kept on the phone (`kept on phone`). Each one is also logged, with the sender id only.
 
 ## Building
 

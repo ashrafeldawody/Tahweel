@@ -1,5 +1,5 @@
-import { Button, Drawer, Group, Paper, Stack, Text } from '@mantine/core';
-import { IconArrowBackUp, IconEyeOff, IconLink, IconShieldCheck } from '@tabler/icons-react';
+import { Alert, Button, Drawer, Group, Paper, Stack, Text } from '@mantine/core';
+import { IconArrowBackUp, IconCircleCheck, IconEyeOff, IconLink, IconShieldCheck } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
@@ -18,11 +18,25 @@ interface MessageDrawerProps {
   onChanged: (message: Message) => void;
 }
 
-const IGNORABLE: readonly MessageStatus[] = ['unmatched', 'not_receipt', 'untrusted_sender', 'stale'];
+const IGNORABLE: readonly MessageStatus[] = ['unmatched', 'not_receipt', 'untrusted_sender', 'stale', 'held'];
 const REOPENABLE: readonly MessageStatus[] = ['ignored', 'stale', 'untrusted_sender'];
 const RETRUSTABLE: readonly MessageStatus[] = ['untrusted_sender'];
 
-type ActionName = 'match' | 'ignore' | 'reopen' | 'retrust';
+type ActionName = 'match' | 'approve' | 'ignore' | 'reopen' | 'retrust';
+
+const HOLD_REASONS: Record<string, string> = {
+  balance_mismatch: 'The balance in this SMS does not equal the last confirmed wallet balance plus the amount.',
+  no_balance: 'This SMS carries no wallet balance, so it cannot be checked.',
+  no_balance_history: 'There is no confirmed wallet balance yet to check this SMS against.',
+  above_review_limit: 'The amount is above the review limit set in Settings.',
+};
+
+const VERIFICATION_LABELS: Record<string, string> = {
+  verified: 'verified',
+  mismatch: 'does not add up',
+  no_balance: 'no balance in the SMS',
+  no_history: 'no confirmed balance yet',
+};
 
 export function MessageDrawer({ message, currency, onClose, onChanged }: MessageDrawerProps) {
   const [busy, setBusy] = useState<ActionName | null>(null);
@@ -57,6 +71,12 @@ export function MessageDrawer({ message, currency, onClose, onChanged }: Message
         { label: 'Sender name', value: message.sender_name ? <span dir="auto">{message.sender_name}</span> : null },
         { label: 'Reference', value: message.reference },
         { label: 'Balance', value: message.balance_cents === null ? null : formatMoney(message.balance_cents, currency) },
+        {
+          label: 'Expected balance',
+          value: message.expected_balance_cents === null ? null : formatMoney(message.expected_balance_cents, currency),
+        },
+        { label: 'Balance check', value: message.verification ? VERIFICATION_LABELS[message.verification] : null },
+        { label: 'Reviewed', value: message.reviewed_at ? <DateTime iso={message.reviewed_at} /> : null },
         { label: 'Provider', value: message.provider },
         { label: 'Parsed', value: message.parsed },
         { label: 'Sender id', value: message.address },
@@ -79,6 +99,7 @@ export function MessageDrawer({ message, currency, onClose, onChanged }: Message
 
   const status = message?.status;
   const canMatch = Boolean(status) && status !== 'matched';
+  const canApprove = status === 'held';
   const canIgnore = Boolean(status) && IGNORABLE.includes(status as MessageStatus);
   const canReopen = Boolean(status) && REOPENABLE.includes(status as MessageStatus);
   const canRetrust = Boolean(status) && RETRUSTABLE.includes(status as MessageStatus);
@@ -94,7 +115,26 @@ export function MessageDrawer({ message, currency, onClose, onChanged }: Message
               </Text>
             </Paper>
 
+            {canApprove && (
+              <Alert color="grape" variant="light" title="Held for review">
+                {HOLD_REASONS[message.note ?? ''] ?? 'This receipt needs a human check.'} Open the wallet app and confirm the transfer
+                really arrived before approving. If it did not, ignore it: the SMS was faked.
+              </Alert>
+            )}
+
             <Group gap="xs">
+              {canApprove && (
+                <Button
+                  size="xs"
+                  color="grape"
+                  leftSection={<IconCircleCheck size={14} />}
+                  loading={busy === 'approve'}
+                  disabled={busy !== null}
+                  onClick={() => void runAction('approve', () => api.messages.approve(message.id), 'Receipt approved')}
+                >
+                  Approve
+                </Button>
+              )}
               {canMatch && (
                 <Button size="xs" leftSection={<IconLink size={14} />} loading={busy === 'match'} disabled={busy !== null} onClick={() => setMatchOpen(true)}>
                   Match

@@ -1,4 +1,4 @@
-export const MESSAGE_STATUSES = ['unmatched', 'matching', 'matched', 'ignored', 'not_receipt', 'untrusted_sender', 'stale'] as const;
+export const MESSAGE_STATUSES = ['unmatched', 'matching', 'matched', 'ignored', 'not_receipt', 'untrusted_sender', 'stale', 'held'] as const;
 export type MessageStatus = (typeof MESSAGE_STATUSES)[number];
 
 export const INTENT_STATUSES = ['pending', 'matched', 'expired', 'cancelled'] as const;
@@ -40,7 +40,12 @@ export interface Message {
   matched_at: string | null;
   matched_by: string | null;
   note: string | null;
+  verification: BalanceVerification | null;
+  expected_balance_cents: number | null;
+  reviewed_at: string | null;
 }
+
+export type BalanceVerification = 'verified' | 'mismatch' | 'no_balance' | 'no_history';
 
 export interface Intent {
   id: string;
@@ -108,6 +113,10 @@ export interface Settings {
   offline_alert_minutes: number;
   webhook_unmatched_receipts: boolean;
   email_alerts: boolean;
+  verify_balance: boolean;
+  balance_margin: number;
+  review_above_amount: number | null;
+  phone_filter: boolean;
   webhook_url: string | null;
   webhook_secret_set: boolean;
 }
@@ -163,6 +172,7 @@ export interface ReconcileSummary {
   retrusted: number;
   expired_intents: number;
   demoted_stale: number;
+  released: number;
   matched: number;
 }
 

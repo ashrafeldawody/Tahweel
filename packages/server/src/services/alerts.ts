@@ -1,4 +1,4 @@
-import type { DeviceRow, PaymentIntentRow, SmsMessageRow } from '../db/schema.js';
+import type { DeviceRow, HoldReason, PaymentIntentRow, SmsMessageRow } from '../db/schema.js';
 import type { Mailer } from './mail.js';
 import { serializeDevice, serializeIntent, serializeMessage } from './serializers.js';
 import type { SettingsService } from './settings.js';
@@ -7,6 +7,13 @@ import type { WebhookService } from './webhooks.js';
 function money(cents: number | null, currency: string): string {
   return `${((cents ?? 0) / 100).toFixed(2)} ${currency}`;
 }
+
+const HOLD_REASON_TEXT: Record<HoldReason, string> = {
+  balance_mismatch: 'the balance in the SMS does not match the last confirmed wallet balance plus this amount',
+  no_balance: 'the SMS carries no wallet balance, so it cannot be checked',
+  no_balance_history: 'there is no confirmed wallet balance yet to check it against',
+  above_review_limit: 'the amount is above the review limit set in Settings',
+};
 
 export class AlertService {
   constructor(
@@ -43,6 +50,25 @@ export class AlertService {
         ].join('\n'),
       );
     }
+  }
+
+  async heldReceipt(message: SmsMessageRow, reason: HoldReason): Promise<void> {
+    const settings = await this.settings.get();
+    if (!settings.email_alerts) return;
+    await this.mail.send(
+      'Wallet receipt held for review',
+      [
+        `Reason: ${HOLD_REASON_TEXT[reason]}`,
+        `From sender id: ${message.address}`,
+        `Amount: ${money(message.amount_cents, settings.currency)}`,
+        `Balance in the SMS: ${message.balance_cents == null ? '-' : money(message.balance_cents, settings.currency)}`,
+        `Expected balance: ${message.expected_balance_cents == null ? '-' : money(message.expected_balance_cents, settings.currency)}`,
+        `Sender phone: ${message.sender_phone ?? '-'}`,
+        `Received at: ${message.received_at}`,
+        '',
+        'Nothing was matched. Open the wallet app, confirm the transfer really arrived, then approve it on the Messages page of the Tahweel dashboard. If it did not arrive, ignore it: the SMS was faked.',
+      ].join('\n'),
+    );
   }
 
   async untrustedSender(message: SmsMessageRow): Promise<void> {

@@ -8,6 +8,7 @@ const STATUS_COLORS: Record<string, string> = {
   not_receipt: 'gray',
   untrusted_sender: 'red',
   stale: 'yellow',
+  held: 'grape',
   pending: 'blue',
   expired: 'gray',
   cancelled: 'gray',

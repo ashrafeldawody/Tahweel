@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- Protection against faked operator SMS. Anyone can send an SMS that shows `vf-cash` or `e& money` as the sender, so the trusted-sender list alone never proved a payment. Two opt-in settings put suspicious receipts in the new `held` status (reason in `note`):
+  - `verify_balance` (default off): a receipt matches automatically only when its wallet balance equals the last confirmed balance of the same phone and wallet plus the amount, within `balance_margin` (default 0.02). Confirmed balances come only from verified receipts and operator-approved ones. Reasons: `balance_mismatch`, `no_balance`, `no_balance_history`.
+  - `review_above_amount` (default off): receipts above the amount are held with `above_review_limit`.
+- `POST /admin/messages/{id}/approve` and an **Approve** button on held messages. Approving (or matching by hand) makes the receipt's balance the new confirmed balance, which corrects drift after withdrawals.
+- Messages carry `verification`, `expected_balance_cents` and `reviewed_at` (API, webhooks, dashboard). Held receipts send an e-mail alert and are released automatically once they pass; `POST /admin/reconcile` reports `released`.
+- Listener: forwards only SMS from trusted sender ids or that mention money; OTPs and personal texts stay on the phone. The rules arrive in the heartbeat response (`forwarding`); `phone_filter` turns the filter off. The main screen shows the rules and how many SMS were kept on the phone.
+
+### Upgrading
+
+- Nothing changes until you turn on the balance check or set a review limit in Settings. After turning the balance check on, approve the first receipt once to set the starting balance.
+- Older listener apps ignore the forwarding rules and keep forwarding everything; install the new APK to filter on the phone.
+
 ## [0.2.0] - 2026-09-13
 
 ### Changed

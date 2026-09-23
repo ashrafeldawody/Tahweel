@@ -74,9 +74,9 @@ Used by the listener app. Documented for people writing their own forwarder.
 }
 ```
 
-Returns `accepted` (fingerprints the phone may drop, including duplicates), `created`, `matched`, and `results[]` with the per-message `status` (`unmatched | matched | ignored | not_receipt | untrusted_sender | stale`), `parsed`, `provider`, `amount_cents`, `sender_phone`, `intent_id`, `note`. Batches are 1..50 messages.
+Returns `accepted` (fingerprints the phone may drop, including duplicates), `created`, `matched`, and `results[]` with the per-message `status` (`unmatched | matched | held | ignored | not_receipt | untrusted_sender | stale`), `parsed`, `provider`, `amount_cents`, `sender_phone`, `intent_id`, `note`. Batches are 1..50 messages.
 
-`POST /ingest/heartbeat` `{ device_id, name?, app_version?, battery?, network?, pending_count?, last_sms_at? }` every 60 s. A device with no heartbeat for `offline_alert_minutes` triggers `device.offline` (and `device.online` when it returns).
+`POST /ingest/heartbeat` `{ device_id, name?, app_version?, battery?, network?, pending_count?, last_sms_at? }` every 60 s. A device with no heartbeat for `offline_alert_minutes` triggers `device.offline` (and `device.online` when it returns). The response carries `forwarding: { filter, senders[], keywords[] }`: when `filter` is true the phone forwards only SMS whose sender id is in `senders` (same matching as the trusted-sender gate) or whose lower-cased body contains one of `keywords`.
 
 ## Admin API (`/admin`)
 
@@ -84,10 +84,11 @@ Everything the dashboard does. Highlights:
 
 - `GET /admin/overview`: counters per status for messages, intents, webhooks; devices with online flags; matched in the last 24 h; recent messages; registered parsers; whether webhooks/mail are configured; current settings.
 - `GET /admin/messages?status=&q=&device_id=`: `q` searches sender phone, sender name, body, address and transaction reference.
-- `POST /admin/messages/{id}/match { intent_id }`: manual match, overriding the stale/untrusted gates (check the wallet balance first). `POST .../ignore`, `POST .../reopen` (ignored/stale/untrusted back to `unmatched` and re-matched), `POST .../retrust` (re-evaluate an `untrusted_sender` row against the current allowlist).
+- `POST /admin/messages/{id}/approve`: release a `held` receipt after checking the wallet app. It goes straight back to matching and its balance becomes the confirmed balance for the balance check, which is how drift is corrected. `409 not_held` for any other status.
+- `POST /admin/messages/{id}/match { intent_id }`: manual match (also counts as a review and confirms the balance), overriding the stale/untrusted gates (check the wallet balance first). `POST .../ignore`, `POST .../reopen` (ignored/stale/untrusted back to `unmatched` and re-matched), `POST .../retrust` (re-evaluate an `untrusted_sender` row against the current allowlist).
 - `POST /admin/intents` creates an intent from the dashboard (same body as the integrator API), `POST /admin/intents/{id}/cancel`.
-- `POST /admin/reconcile`: re-trust, expire, demote stale, match; returns the counts.
-- `GET|PATCH /admin/settings`: `trusted_senders[]`, `max_age_hours`, `auto_match`, `currency`, `timezone`, `intent_ttl_minutes`, `offline_alert_minutes`, `webhook_unmatched_receipts`, `email_alerts`, `webhook_url` (null falls back to `WEBHOOK_URL`), `webhook_secret` (write-only, ≥ 16 chars; responses carry `webhook_secret_set` instead). A URL without any secret is rejected with `webhook_secret_required`.
+- `POST /admin/reconcile`: re-trust, expire, demote stale, release held receipts that now pass the checks, match; returns the counts.
+- `GET|PATCH /admin/settings`: `trusted_senders[]`, `max_age_hours`, `auto_match`, `currency`, `timezone`, `intent_ttl_minutes`, `offline_alert_minutes`, `webhook_unmatched_receipts`, `email_alerts`, `verify_balance` (default false), `balance_margin` (major units, default 0.02), `review_above_amount` (major units, null turns it off), `phone_filter`, `webhook_url` (null falls back to `WEBHOOK_URL`), `webhook_secret` (write-only, ≥ 16 chars; responses carry `webhook_secret_set` instead). A URL without any secret is rejected with `webhook_secret_required`.
 - `GET /admin/webhooks?status=`, `POST /admin/webhooks/{id}/redeliver`, `POST /admin/webhooks/test { url? }`.
 - `GET /admin/health`: version, database dialect and location, parser ids, configuration flags.
 

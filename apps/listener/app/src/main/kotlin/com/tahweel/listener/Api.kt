@@ -120,6 +120,7 @@ class Api(private val context: Context) {
             .put("pending_count", pendingCount)
         if (lastSmsAtMs != null) body.put("last_sms_at", Clock.iso(lastSmsAtMs)) else body.put("last_sms_at", JSONObject.NULL)
         val res = execute("/ingest/heartbeat", body)
+        ForwardRules.from(res.optJSONObject("forwarding"))?.let { ForwardFilter.save(Store.get(context), it) }
         return res.optString("server_time", "ok")
     }
 

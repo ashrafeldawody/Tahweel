@@ -12,6 +12,10 @@ export const settingsFixture: Settings = {
   offline_alert_minutes: 30,
   webhook_unmatched_receipts: false,
   email_alerts: true,
+  verify_balance: false,
+  balance_margin: 0.02,
+  review_above_amount: null,
+  phone_filter: true,
   webhook_url: 'https://shop.example.com/webhooks/tahweel',
   webhook_secret_set: true,
 };
@@ -52,6 +56,9 @@ export function messageFixture(overrides: Partial<Message> = {}): Message {
     matched_at: null,
     matched_by: null,
     note: null,
+    verification: 'verified',
+    expected_balance_cents: 42990,
+    reviewed_at: null,
     ...overrides,
   };
 }

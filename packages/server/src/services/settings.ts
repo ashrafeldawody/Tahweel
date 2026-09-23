@@ -14,6 +14,10 @@ export interface Settings {
   offline_alert_minutes: number;
   webhook_unmatched_receipts: boolean;
   email_alerts: boolean;
+  verify_balance: boolean;
+  balance_margin: number;
+  review_above_amount: number | null;
+  phone_filter: boolean;
   webhook_url: string | null;
   webhook_secret_set: boolean;
 }
@@ -38,6 +42,10 @@ export const SETTINGS_DEFAULTS: Omit<Settings, 'trusted_senders' | 'webhook_url'
   offline_alert_minutes: 30,
   webhook_unmatched_receipts: false,
   email_alerts: true,
+  verify_balance: false,
+  balance_margin: 0.02,
+  review_above_amount: null,
+  phone_filter: true,
 };
 
 const KEYS = [
@@ -50,6 +58,10 @@ const KEYS = [
   'offline_alert_minutes',
   'webhook_unmatched_receipts',
   'email_alerts',
+  'verify_balance',
+  'balance_margin',
+  'review_above_amount',
+  'phone_filter',
 ] as const satisfies readonly (keyof Settings)[];
 
 type Reader = <T>(key: string, fallback: T) => T;
@@ -76,6 +88,10 @@ export class SettingsService {
         SETTINGS_DEFAULTS.webhook_unmatched_receipts,
       ),
       email_alerts: read('email_alerts', SETTINGS_DEFAULTS.email_alerts),
+      verify_balance: read('verify_balance', SETTINGS_DEFAULTS.verify_balance),
+      balance_margin: read('balance_margin', SETTINGS_DEFAULTS.balance_margin),
+      review_above_amount: read<number | null>('review_above_amount', SETTINGS_DEFAULTS.review_above_amount),
+      phone_filter: read('phone_filter', SETTINGS_DEFAULTS.phone_filter),
       webhook_url: webhook.url,
       webhook_secret_set: webhook.secret !== null,
     };

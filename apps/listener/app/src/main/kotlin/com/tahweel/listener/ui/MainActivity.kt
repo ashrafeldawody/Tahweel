@@ -10,6 +10,7 @@ import androidx.core.content.ContextCompat
 import com.tahweel.listener.AppLog
 import com.tahweel.listener.BuildConfig
 import com.tahweel.listener.Clock
+import com.tahweel.listener.ForwardFilter
 import com.tahweel.listener.ForwarderService
 import com.tahweel.listener.Permissions
 import com.tahweel.listener.Prefs
@@ -154,11 +155,19 @@ class MainActivity : AppCompatActivity() {
         b.serviceState.text = if (ForwarderService.running) "Running" else "Not running"
         b.serviceState.setTextColor(ContextCompat.getColor(this, if (ForwarderService.running) R.color.ok else R.color.bad))
         fun at(key: String): String = store.stat(key)?.toLongOrNull()?.let { Clock.local(it) } ?: "—"
+        val rules = ForwardFilter.rules(store)
+        val forwarding = when {
+            rules == null -> "all SMS (no rules from the server yet)"
+            !rules.filter -> "all SMS (filter off on the server)"
+            else -> "${rules.senders.size} trusted senders + money keywords"
+        }
         b.statusText.text = listOf(
             "device id      : ${prefs.deviceId}",
             "configured     : ${prefs.configured}",
             "queued         : ${store.pendingCount()}",
             "last sms       : ${at("last_sms_at")}",
+            "forwarding     : $forwarding",
+            "kept on phone  : ${store.stat("filtered_count") ?: "0"}",
             "last upload    : ${at("last_upload_at")} ${store.stat("last_upload_result") ?: ""}",
             "last heartbeat : ${at("last_heartbeat_at")} ${store.stat("last_heartbeat_result") ?: ""}",
             "last error     : ${store.stat("last_error") ?: "—"}",

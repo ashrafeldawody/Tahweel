@@ -112,7 +112,7 @@
               "query": [],
               "variable": []
             },
-            "description": "Device heartbeat\n\nSent every 60 s by the listener. Missing heartbeats past the offline threshold raise a device.offline event.",
+            "description": "Device heartbeat\n\nSent every 60 s by the listener. Missing heartbeats past the offline threshold raise a device.offline event. The response carries the forwarding rules the phone applies to new SMS.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"device_id\": \"sm-m526b-1a2b3c\",\n  \"name\": \"Samsung M52 office\",\n  \"app_version\": \"1.0.0\",\n  \"battery\": 87,\n  \"network\": \"wifi\",\n  \"pending_count\": 0,\n  \"last_sms_at\": \"2026-09-13T10:15:30.000Z\"\n}",
@@ -614,6 +614,43 @@
           "response": []
         },
         {
+          "name": "Approve a held message after checking the wallet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/messages/:id/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "messages",
+                ":id",
+                "approve"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "7c1d0f3e-4a7b-4c1e-9c6d-2f5a8b9e0d11"
+                }
+              ]
+            },
+            "description": "Approve a held message after checking the wallet\n\nReleases a held receipt to automatic matching and makes its balance the new confirmed balance. Only approve after the wallet app shows the transfer."
+          },
+          "response": []
+        },
+        {
           "name": "Ignore a message so it never matches",
           "request": {
             "method": "POST",
@@ -911,7 +948,7 @@
               "query": [],
               "variable": []
             },
-            "description": "Re-run matching now\n\nRe-trusts messages whose sender id is now allowed, expires old intents, demotes stale receipts and matches everything unmatched."
+            "description": "Re-run matching now\n\nRe-trusts messages whose sender id is now allowed, expires old intents, demotes stale receipts, releases held receipts that now pass verification and matches everything unmatched."
           },
           "response": []
         },
@@ -978,7 +1015,7 @@
             "description": "Update settings",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"trusted_senders\": [\n    \"string\"\n  ],\n  \"max_age_hours\": 1,\n  \"auto_match\": false,\n  \"currency\": \"string\",\n  \"timezone\": \"string\",\n  \"intent_ttl_minutes\": 1,\n  \"offline_alert_minutes\": 5,\n  \"webhook_unmatched_receipts\": false,\n  \"email_alerts\": false,\n  \"webhook_url\": \"string\",\n  \"webhook_secret\": \"string\"\n}",
+              "raw": "{\n  \"trusted_senders\": [\n    \"string\"\n  ],\n  \"max_age_hours\": 1,\n  \"auto_match\": false,\n  \"currency\": \"string\",\n  \"timezone\": \"string\",\n  \"intent_ttl_minutes\": 1,\n  \"offline_alert_minutes\": 5,\n  \"webhook_unmatched_receipts\": false,\n  \"email_alerts\": false,\n  \"verify_balance\": false,\n  \"balance_margin\": 0,\n  \"review_above_amount\": 0,\n  \"phone_filter\": false,\n  \"webhook_url\": \"string\",\n  \"webhook_secret\": \"string\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

@@ -2,11 +2,12 @@
 
 **Turn a spare Android phone into a payment gateway for your mobile wallet.**
 
-Personal wallets such as Vodafone Cash, e& money or Orange Cash have no merchant API, but every transfer you receive arrives as an SMS from the operator. Tahweel makes that SMS usable by software: an Android phone holding the wallet SIM forwards every SMS to a server you run, the server checks that the receipt really came from the operator, matches it against a **payment intent** your system registered, and sends your backend a **signed webhook**.
+Personal wallets such as Vodafone Cash, e& money or Orange Cash have no merchant API, but every transfer you receive arrives as an SMS from the operator. Tahweel makes that SMS usable by software: an Android phone holding the wallet SIM forwards the operator SMS to a server you run, the server checks that the receipt came from a trusted operator sender id, matches it against a **payment intent** your system registered, and sends your backend a **signed webhook**.
 
 - **Self-hosted.** One container, no cloud, no account, no telemetry. Your data never leaves your server.
 - **Gateway-style API.** `POST /api/v1/intents`, receive `payment.matched`. Swagger UI and a Postman collection included.
-- **Dashboard.** Devices, every SMS with its verdict, intents, webhook deliveries, settings, manual matching.
+- **Dashboard.** Devices, every forwarded SMS with its verdict, intents, webhook deliveries, settings, manual matching.
+- **Fake SMS protection.** Anyone can send an SMS that pretends to come from `vf-cash`. Optionally, a receipt only matches when its wallet balance adds up, and receipts above an amount you choose wait until you confirm them in the wallet app. See [Security](docs/security.md#fake-sms).
 - **New wallets are one file.** A parser plus sample messages.
 
 ```
@@ -67,7 +68,7 @@ Wireless debugging, troubleshooting and the alternative (pausing Play Protect fo
 | [Webhooks](docs/webhooks.md) | Events, headers, retries, signature verification (Node, PHP) |
 | [Listener app](docs/listener.md) | Building, installing with ADB, phone setup checklist, operating |
 | [Deployment](docs/deploy.md) | Environment variables, Docker, PostgreSQL, reverse proxy, backups, releases |
-| [Security](docs/security.md) | Where your data goes, credentials, trust gates |
+| [Security](docs/security.md) | Fake SMS protection, where your data goes, credentials |
 | [Parsers](docs/parsers.md) | Adding a new wallet's SMS format |
 | [Development](docs/development.md) | Repository layout, tests, CI |
 | [Postman](postman/README.md) | Ready-made collection for the API |

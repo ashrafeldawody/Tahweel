@@ -175,7 +175,8 @@
           "ignored",
           "not_receipt",
           "untrusted_sender",
-          "stale"
+          "stale",
+          "held"
         ]
       },
       "Error": {
@@ -267,6 +268,9 @@
           "device": {
             "$ref": "#/components/schemas/Device"
           },
+          "forwarding": {
+            "$ref": "#/components/schemas/ForwardingRules"
+          },
           "server_time": {
             "type": "string",
             "format": "date-time",
@@ -276,6 +280,7 @@
         "required": [
           "ok",
           "device",
+          "forwarding",
           "server_time"
         ]
       },
@@ -333,6 +338,44 @@
           "offline_alerted_at",
           "created_at",
           "online"
+        ]
+      },
+      "ForwardingRules": {
+        "type": "object",
+        "properties": {
+          "filter": {
+            "type": "boolean",
+            "example": true,
+            "description": "When false the phone forwards every SMS"
+          },
+          "senders": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "e& money",
+              "vf-cash"
+            ],
+            "description": "Trusted sender ids, normalised (trimmed, lower case)"
+          },
+          "keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "مبلغ",
+              "جنيه",
+              "egp"
+            ],
+            "description": "SMS whose lower-cased body contains one of these are forwarded even from other senders"
+          }
+        },
+        "required": [
+          "filter",
+          "senders",
+          "keywords"
         ]
       },
       "HeartbeatRequest": {
@@ -493,7 +536,22 @@
           },
           "note": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "description": "For held messages, the reason: balance_mismatch, no_balance, no_balance_history or above_review_limit"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/BalanceVerification"
+          },
+          "expected_balance_cents": {
+            "type": "integer",
+            "nullable": true,
+            "example": 42990,
+            "description": "Last confirmed balance plus this amount, when known"
+          },
+          "reviewed_at": {
+            "type": "string",
+            "nullable": true,
+            "description": "When an operator approved or manually matched the message"
           }
         },
         "required": [
@@ -516,8 +574,23 @@
           "intent_id",
           "matched_at",
           "matched_by",
-          "note"
+          "note",
+          "verification",
+          "expected_balance_cents",
+          "reviewed_at"
         ]
+      },
+      "BalanceVerification": {
+        "type": "string",
+        "nullable": true,
+        "enum": [
+          "verified",
+          "mismatch",
+          "no_balance",
+          "no_history",
+          null
+        ],
+        "description": "verified: the balance equals the last confirmed balance plus the amount, within the balance margin. mismatch: it does not. no_balance: the SMS carries no balance. no_history: there is no confirmed balance yet to compare with."
       },
       "PaymentIntent": {
         "type": "object",
@@ -863,6 +936,27 @@
             "type": "boolean",
             "example": true
           },
+          "verify_balance": {
+            "type": "boolean",
+            "example": false,
+            "description": "Hold receipts whose wallet balance cannot be confirmed"
+          },
+          "balance_margin": {
+            "type": "number",
+            "example": 0.02,
+            "description": "Allowed difference between the expected and the stated balance, in major units"
+          },
+          "review_above_amount": {
+            "type": "number",
+            "nullable": true,
+            "example": 1000,
+            "description": "Hold receipts above this amount (major units) for review; null turns it off"
+          },
+          "phone_filter": {
+            "type": "boolean",
+            "example": true,
+            "description": "Tell listener phones to forward only trusted senders and money-looking SMS"
+          },
           "webhook_url": {
             "type": "string",
             "nullable": true,
@@ -885,6 +979,10 @@
           "offline_alert_minutes",
           "webhook_unmatched_receipts",
           "email_alerts",
+          "verify_balance",
+          "balance_margin",
+          "review_above_amount",
+          "phone_filter",
           "webhook_url",
           "webhook_secret_set"
         ]
@@ -934,6 +1032,24 @@
             "type": "boolean"
           },
           "email_alerts": {
+            "type": "boolean"
+          },
+          "verify_balance": {
+            "type": "boolean"
+          },
+          "balance_margin": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "review_above_amount": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "exclusiveMinimum": true,
+            "maximum": 100000000
+          },
+          "phone_filter": {
             "type": "boolean"
           },
           "webhook_url": {
@@ -1136,7 +1252,7 @@
           "Ingest (phone)"
         ],
         "summary": "Device heartbeat",
-        "description": "Sent every 60 s by the listener. Missing heartbeats past the offline threshold raise a device.offline event.",
+        "description": "Sent every 60 s by the listener. Missing heartbeats past the offline threshold raise a device.offline event. The response carries the forwarding rules the phone applies to new SMS.",
         "security": [
           {
             "IngestToken": []
@@ -1991,6 +2107,74 @@
         }
       }
     },
+    "/admin/messages/{id}/approve": {
+      "post": {
+        "tags": [
+          "Admin (dashboard)"
+        ],
+        "summary": "Approve a held message after checking the wallet",
+        "description": "Releases a held receipt to automatic matching and makes its balance the new confirmed balance. Only approve after the wallet app shows the transfer.",
+        "security": [
+          {
+            "AdminToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "7c1d0f3e-4a7b-4c1e-9c6d-2f5a8b9e0d11"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Approved message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmsMessage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/messages/{id}/ignore": {
       "post": {
         "tags": [
@@ -2492,7 +2676,7 @@
           "Admin (dashboard)"
         ],
         "summary": "Re-run matching now",
-        "description": "Re-trusts messages whose sender id is now allowed, expires old intents, demotes stale receipts and matches everything unmatched.",
+        "description": "Re-trusts messages whose sender id is now allowed, expires old intents, demotes stale receipts, releases held receipts that now pass verification and matches everything unmatched.",
         "security": [
           {
             "AdminToken": []
@@ -2515,6 +2699,9 @@
                     "demoted_stale": {
                       "type": "number"
                     },
+                    "released": {
+                      "type": "number"
+                    },
                     "matched": {
                       "type": "number"
                     }
@@ -2523,6 +2710,7 @@
                     "retrusted",
                     "expired_intents",
                     "demoted_stale",
+                    "released",
                     "matched"
                   ]
                 }

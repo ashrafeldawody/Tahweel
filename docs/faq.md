@@ -11,6 +11,9 @@
 - [Does it read the transaction number (رقم العملية)?](#does-it-read-the-transaction-number-رقم-العملية)
 - [Does a payment have a time?](#does-a-payment-have-a-time)
 - [Can someone fake a payment by texting the phone?](#can-someone-fake-a-payment-by-texting-the-phone)
+- [Why is a payment held for review?](#why-is-a-payment-held-for-review)
+- [Can I correct the balance if it drifts?](#can-i-correct-the-balance-if-it-drifts)
+- [Does the phone send all my SMS to the server?](#does-the-phone-send-all-my-sms-to-the-server)
 - [What happens when the phone is off or offline?](#what-happens-when-the-phone-is-off-or-offline)
 - [Who can see my payments?](#who-can-see-my-payments)
 - [What is the license?](#what-is-the-license)
@@ -119,11 +122,37 @@ Yes, three UTC timestamps on the message: `received_at` (when the SMS reached th
 
 ## Can someone fake a payment by texting the phone?
 
-Not automatically. Only messages whose sender is on the trusted operator list (for example `vf-cash`) can match; a text from an ordinary phone number is stored as `untrusted_sender`. Binding each intent to the customer's `sender_phone` adds another check. See [security.md](security.md).
+They can send one: SMS gateways let anyone show `vf-cash` or `e& money` as the sender, and the text can name any amount and phone number. Two settings stop it from being matched:
+
+- **Verify the wallet balance** (off by default): a receipt only matches when the wallet balance written in it equals the last confirmed balance plus the amount, within a small margin (0.02 by default). An outsider does not know your balance.
+- **Review receipts above**: receipts above that amount always wait until someone checks the wallet app and approves them.
+
+Details and limits in [security.md](security.md#fake-sms).
+
+## Why is a payment held for review?
+
+The dashboard shows the reason on the message:
+
+| Reason | Meaning | What to do |
+|---|---|---|
+| `balance_mismatch` | The balance in the SMS is not the last confirmed balance plus the amount | Usual after you withdrew or sent money. Check the wallet app; approve if the transfer is there, ignore if not |
+| `no_balance_history` | No confirmed balance yet (first receipt after turning the check on) | Check the wallet app and approve once; later receipts are checked against it |
+| `no_balance` | The SMS carries no balance, so it cannot be checked | Check the wallet app and approve, or turn the balance check off if most of your receipts look like this |
+| `above_review_limit` | The amount is above your review limit | Check the wallet app and approve |
+
+While a receipt is held, its intent stays `pending`. Approving it matches it straight away.
+
+## Can I correct the balance if it drifts?
+
+Yes. Tahweel compares each receipt with the balance written in the last confirmed receipt, not with a running total, so small rounding differences never accumulate. When the balance really moves (a withdrawal, a transfer out, a fee, an SMS the phone missed), the next receipt is held with `balance_mismatch` and shows the balance Tahweel expected next to the one in the SMS. Check the wallet app and press **Approve**: that receipt's balance becomes the new confirmed balance and everything after it is checked against it. Matching a held receipt by hand does the same. If your operator rounds balances, raise **Balance margin** in Settings.
+
+## Does the phone send all my SMS to the server?
+
+No, not by default. The phone forwards SMS from the trusted wallet senders and any SMS that mentions money (`مبلغ`, `جنيه`, `EGP`, …), and keeps OTPs and personal texts on the phone. The rules come from your server with every heartbeat. **Filter SMS on the phone** in Settings turns it off if you want everything forwarded. See [listener.md](listener.md#what-the-phone-forwards).
 
 ## What happens when the phone is off or offline?
 
-Messages that arrive while the phone has no network are queued on the phone and sent when it reconnects. The dashboard marks the device offline after missed heartbeats and fires a `device.offline` webhook. SMS that arrive while the app is not installed or the phone is switched off completely are only delivered once the phone is back on; paste any missed receipt into the app's debug screen or match it by hand. Keep the phone on a charger and go through the [phone checklist](listener.md#installing-and-configuring).
+Forwarded messages that arrive while the phone has no network are queued on the phone and sent when it reconnects. The dashboard marks the device offline after missed heartbeats and fires a `device.offline` webhook. SMS that arrive while the app is not installed or the phone is switched off completely are only delivered once the phone is back on; paste any missed receipt into the app's debug screen or match it by hand. Keep the phone on a charger and go through the [phone checklist](listener.md#installing-and-configuring).
 
 ## Who can see my payments?
 

@@ -17,10 +17,17 @@ class SmsReceiver : BroadcastReceiver() {
         if (messages == null || messages.isEmpty()) return
 
         val store = Store.get(context)
+        val rules = ForwardFilter.rules(store)
         var queued = 0
         for ((address, parts) in messages.groupBy { it.originatingAddress ?: "" }) {
             val body = parts.joinToString("") { it.messageBody ?: "" }
             val ts = parts.first().timestampMillis.takeIf { it > 0 } ?: System.currentTimeMillis()
+            if (!ForwardFilter.shouldForward(rules, address, body)) {
+                val skipped = (store.stat("filtered_count")?.toLongOrNull() ?: 0L) + 1
+                store.setStat("filtered_count", skipped.toString())
+                AppLog.i("sms", "kept on the phone: '$address' is not a trusted sender and the text does not mention money")
+                continue
+            }
             val item = QueueItem(Fingerprint.of(address, body, ts), address, body, ts)
             if (store.enqueue(item)) queued += 1
             store.setStat("last_sms_at", ts.toString())

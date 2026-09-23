@@ -37,13 +37,15 @@ flowchart LR
 
 ## How matching works
 
-1. The phone forwards **every** SMS with a `fingerprint = sha256(address|body|smsc_timestamp)`. Duplicates are accepted and dropped.
+1. The phone forwards SMS from trusted sender ids and any SMS that mentions money (`مبلغ`, `جنيه`, `EGP`, …), with a `fingerprint = sha256(address|body|smsc_timestamp)`. The rules come from the server in every heartbeat, so editing the trusted senders reaches the phone within a minute; turning **Filter SMS on the phone** off in Settings makes it forward everything. Duplicates are accepted and dropped.
 2. The parser registry (`packages/server/src/parsers/`) picks the provider whose `detect()` claims the message and extracts amount, sender phone (normalised to 11 local digits), sender name, balance and reference. Anything that is not an incoming transfer is stored as `not_receipt` (OTPs, marketing, outgoing transfers).
 3. **Sender gate**: the originating address must be an alphanumeric operator sender id on the trusted list (defaults come from the parsers; editable in Settings). Ordinary phone numbers never pass. Otherwise the row is `untrusted_sender`.
 4. **Age gate**: receipts older than `max_age_hours` (default 48) are stored as `stale` and never auto-matched, so replayed history cannot re-credit old payments.
-5. **Matching**: the oldest pending, unexpired intent with the same `sender_phone` and `amount <= paid amount` wins (overpayment is fine, underpayment never matches). Intents without a sender phone must opt in with `allow_amount_only` and only match an **exact** amount when exactly one such intent is pending.
-6. **Lock before apply**: the message flips `unmatched → matching` and the intent `pending → matched` with conditional updates, so two reconcilers (or two processes) cannot apply the same receipt twice. Runs on every ingest, on every intent creation, and every `RECONCILE_INTERVAL_MINUTES`.
-7. **Webhook**: `payment.matched` with the intent and the message, signed with the webhook secret, retried with backoff for up to 8 attempts. Everything else is visible in the dashboard where an operator can match by hand, ignore, reopen or re-trust.
+5. **Balance check** (off by default): with `verify_balance` on, a receipt is `verified` when its wallet balance equals the last *confirmed* balance of the same phone and wallet plus the amount, within `balance_margin` (default 0.02). Confirmed balances come only from verified receipts and from receipts an operator approved or matched by hand. A receipt that does not add up, carries no balance, or has nothing to compare with yet is stored as `held` with the reason in `note`. Held receipts are re-checked on every ingest and reconcile, so one held only because an earlier receipt arrived late is released on its own. Approving a held receipt makes its balance the new confirmed balance, which is how drift after a withdrawal is corrected.
+6. **Review limit**: when `review_above_amount` is set, receipts above it are `held` (note `above_review_limit`) even when the balance adds up. Raising or clearing the limit releases them on the next reconcile.
+7. **Matching**: the oldest pending, unexpired intent with the same `sender_phone` and `amount <= paid amount` wins (overpayment is fine, underpayment never matches). Intents without a sender phone must opt in with `allow_amount_only` and only match an **exact** amount when exactly one such intent is pending.
+8. **Lock before apply**: the message flips `unmatched → matching` and the intent `pending → matched` with conditional updates, so two reconcilers (or two processes) cannot apply the same receipt twice. Runs on every ingest, on every intent creation, and every `RECONCILE_INTERVAL_MINUTES`.
+9. **Webhook**: `payment.matched` with the intent and the message, signed with the webhook secret, retried with backoff for up to 8 attempts. Everything else is visible in the dashboard where an operator can approve, match by hand, ignore, reopen or re-trust.
 
 ## Adding a new wallet SMS template
 
@@ -52,7 +54,7 @@ Drop `packages/server/src/parsers/<provider>.parser.ts` (exporting `defineParser
 ## Limits (deliberate)
 
 - **No USSD polling** and no reading of wallet-app notifications: the operator SMS is the only source.
-- **Sender ids are spoofable on some networks**, which is why the allowlist plus the age gate plus a per-intent sender phone are all on by default. Keep `allow_amount_only` off unless you accept that risk.
+- **Sender ids can be faked.** SMS gateways let anyone send a text that shows `vf-cash` or `e& money` as the sender, so the trusted-sender list alone proves nothing. Turn on the balance check and set a review limit; see [security.md](security.md#fake-sms) for what they do and do not cover.
 - **One phone = one wallet number.** Several phones can report to one server (each is a device), but a message is matched by amount and sender phone only, never by the receiving wallet.
 - **Orange Cash receipts carry the sender's name but not their number** (and an agent cash-in carries neither), so they cannot satisfy an intent bound to a `sender_phone`. They auto-match intents created with `allow_amount_only` and otherwise wait under **Messages** for a manual match.
 - Egyptian phone numbers (`01xxxxxxxxx`) are assumed by the bundled parsers; the normaliser lives in one file and is easy to extend.

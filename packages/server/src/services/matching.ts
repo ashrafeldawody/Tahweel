@@ -2,13 +2,21 @@ import type { Kysely } from 'kysely';
 import { newId } from '../config/ids.js';
 import { logger } from '../config/log.js';
 import { HOUR_MS, nowIso, parseIso, toIso } from '../config/time.js';
-import type { Database, MatchedBy, MessageStatus, PaymentIntentRow, SmsMessageRow } from '../db/schema.js';
+import type {
+  Database,
+  HoldReason,
+  MatchedBy,
+  MessageStatus,
+  PaymentIntentRow,
+  SmsMessageRow,
+  Verification,
+} from '../db/schema.js';
 import { parseSms } from '../parsers/registry.js';
 import type { AlertService } from './alerts.js';
 import type { DevicesService } from './devices.js';
 import { badRequest, conflict, notFound } from './errors.js';
 import type { IntentsService } from './intents.js';
-import type { SettingsService } from './settings.js';
+import type { Settings, SettingsService } from './settings.js';
 import { isTrustedSender } from './trusted-senders.js';
 
 const log = logger('matching');
@@ -39,13 +47,14 @@ export interface IngestResult {
   results: IngestRowResult[];
 }
 
-export type MatchOutcome = 'matched' | 'unmatched' | 'skipped';
+export type MatchOutcome = 'matched' | 'unmatched' | 'held' | 'skipped';
 type ApplyOutcome = 'matched' | 'message_locked' | 'intent_taken';
 
 export interface ReconcileSummary {
   retrusted: number;
   expired_intents: number;
   demoted_stale: number;
+  released: number;
   matched: number;
 }
 
@@ -99,6 +108,9 @@ export class MatchService {
         matched_at: null,
         matched_by: null,
         note: null,
+        verification: null,
+        expected_balance_cents: null,
+        reviewed_at: null,
       };
       const inserted = await this.db
         .insertInto('sms_messages')
@@ -115,11 +127,13 @@ export class MatchService {
     if (newestReceivedAt) await this.devices.recordLastSms(deviceId, newestReceivedAt);
 
     let matched = 0;
+    fresh.sort((a, b) => a.received_at.localeCompare(b.received_at));
     for (const row of fresh) {
       const outcome = await this.matchOne(row);
       if (outcome === 'matched') matched += 1;
       else if (outcome === 'unmatched') await this.alerts.unmatchedReceipt(row);
     }
+    if (fresh.length > 0) matched += (await this.releaseHeld()).matched;
     for (const row of untrusted) await this.alerts.untrustedSender(row);
 
     const rows = await this.db
@@ -151,6 +165,7 @@ export class MatchService {
     const retrusted = await this.retrustAll();
     const expiredIntents = await this.intents.expirePending();
     const demoted = await this.demoteStale();
+    const released = await this.releaseHeld();
     const rows = await this.db
       .selectFrom('sms_messages')
       .selectAll()
@@ -163,7 +178,13 @@ export class MatchService {
     for (const row of rows) {
       if ((await this.matchOne(row)) === 'matched') matched += 1;
     }
-    return { retrusted, expired_intents: expiredIntents, demoted_stale: demoted, matched };
+    return {
+      retrusted,
+      expired_intents: expiredIntents,
+      demoted_stale: demoted,
+      released: released.released,
+      matched: matched + released.matched,
+    };
   }
 
   async matchForIntent(intent: PaymentIntentRow): Promise<PaymentIntentRow> {
@@ -189,11 +210,24 @@ export class MatchService {
     if (message.status !== 'unmatched') return 'skipped';
     if (!message.amount_cents) return 'unmatched';
     const settings = await this.settings.get();
-    if (!settings.auto_match) return 'skipped';
     if (isStale(message.received_at, settings.max_age_hours)) {
       await this.setStatus(message.id, 'unmatched', 'stale');
       return 'skipped';
     }
+    const holdReason = await this.holdReason(message, settings);
+    if (holdReason) {
+      const held = await this.db
+        .updateTable('sms_messages')
+        .set({ status: 'held', note: holdReason })
+        .where('id', '=', message.id)
+        .where('status', '=', 'unmatched')
+        .executeTakeFirst();
+      if (Number(held.numUpdatedRows ?? 0) === 0) return 'skipped';
+      log.info(`held message ${message.id} for review (${holdReason})`);
+      await this.alerts.heldReceipt(await this.getMessage(message.id), holdReason);
+      return 'held';
+    }
+    if (!settings.auto_match) return 'skipped';
     const candidates = await this.candidateIntents(message);
     if (candidates.kind === 'ambiguous') {
       await this.note(message.id, 'ambiguous_amount_only');
@@ -205,6 +239,101 @@ export class MatchService {
       if (outcome === 'message_locked') return 'skipped';
     }
     return 'unmatched';
+  }
+
+  async approve(messageId: string): Promise<SmsMessageRow> {
+    const reviewed = await this.db
+      .updateTable('sms_messages')
+      .set({ status: 'unmatched', note: null, reviewed_at: nowIso() })
+      .where('id', '=', messageId)
+      .where('status', '=', 'held')
+      .executeTakeFirst();
+    if (Number(reviewed.numUpdatedRows ?? 0) === 0) {
+      const row = await this.getMessage(messageId);
+      throw conflict('not_held', { status: row.status });
+    }
+    log.info(`message ${messageId} approved after review`);
+    await this.matchOne(await this.getMessage(messageId));
+    await this.releaseHeld();
+    return await this.getMessage(messageId);
+  }
+
+  async releaseHeld(): Promise<{ released: number; matched: number }> {
+    const settings = await this.settings.get();
+    const rows = await this.db
+      .selectFrom('sms_messages')
+      .selectAll()
+      .where('status', '=', 'held')
+      .orderBy('received_at', 'asc')
+      .limit(200)
+      .execute();
+    let released = 0;
+    let matched = 0;
+    for (const row of rows) {
+      const reason = await this.holdReason(row, settings);
+      if (reason) {
+        if (reason !== row.note) await this.note(row.id, reason);
+        continue;
+      }
+      const unlocked = await this.db
+        .updateTable('sms_messages')
+        .set({ status: 'unmatched', note: null })
+        .where('id', '=', row.id)
+        .where('status', '=', 'held')
+        .executeTakeFirst();
+      if (Number(unlocked.numUpdatedRows ?? 0) === 0) continue;
+      released += 1;
+      log.info(`released held message ${row.id}`);
+      if ((await this.matchOne(await this.getMessage(row.id))) === 'matched') matched += 1;
+    }
+    return { released, matched };
+  }
+
+  private async holdReason(message: SmsMessageRow, settings: Settings): Promise<HoldReason | null> {
+    if (message.reviewed_at) return null;
+    const verification = await this.refreshVerification(message, Math.round(settings.balance_margin * 100));
+    if (settings.verify_balance) {
+      if (verification === 'mismatch') return 'balance_mismatch';
+      if (verification === 'no_balance') return 'no_balance';
+      if (verification === 'no_history') return 'no_balance_history';
+    }
+    const limit = settings.review_above_amount;
+    if (limit != null && (message.amount_cents ?? 0) > Math.round(limit * 100)) return 'above_review_limit';
+    return null;
+  }
+
+  private async refreshVerification(message: SmsMessageRow, marginCents: number): Promise<Verification> {
+    if (message.verification === 'verified') return 'verified';
+    const { verification, expected } = await this.checkBalance(message, marginCents);
+    if (verification !== message.verification || expected !== message.expected_balance_cents) {
+      await this.db
+        .updateTable('sms_messages')
+        .set({ verification, expected_balance_cents: expected })
+        .where('id', '=', message.id)
+        .execute();
+    }
+    return verification;
+  }
+
+  private async checkBalance(
+    message: SmsMessageRow,
+    marginCents: number,
+  ): Promise<{ verification: Verification; expected: number | null }> {
+    if (message.balance_cents == null || message.amount_cents == null) return { verification: 'no_balance', expected: null };
+    let query = this.db
+      .selectFrom('sms_messages')
+      .select(['balance_cents'])
+      .where('device_id', '=', message.device_id)
+      .where('id', '!=', message.id)
+      .where('received_at', '<', message.received_at)
+      .where('balance_cents', 'is not', null)
+      .where((eb) => eb.or([eb('verification', '=', 'verified'), eb('reviewed_at', 'is not', null)]));
+    query = message.provider ? query.where('provider', '=', message.provider) : query.where('provider', 'is', null);
+    const anchor = await query.orderBy('received_at', 'desc').limit(1).executeTakeFirst();
+    if (!anchor || anchor.balance_cents == null) return { verification: 'no_history', expected: null };
+    const expected = anchor.balance_cents + message.amount_cents;
+    const withinMargin = Math.abs(expected - message.balance_cents) <= marginCents;
+    return { verification: withinMargin ? 'verified' : 'mismatch', expected };
   }
 
   private async candidateIntents(
@@ -243,10 +372,14 @@ export class MatchService {
     if (!message.amount_cents) throw badRequest('amount_unknown');
     const intent = await this.intents.get(intentId);
     if (intent.status !== 'pending') throw conflict('intent_not_pending', { status: intent.status });
-    if (message.status !== 'unmatched') {
-      await this.db.updateTable('sms_messages').set({ status: 'unmatched' }).where('id', '=', messageId).execute();
-      message.status = 'unmatched';
-    }
+    const reviewedAt = message.reviewed_at ?? nowIso();
+    await this.db
+      .updateTable('sms_messages')
+      .set({ status: 'unmatched', reviewed_at: reviewedAt })
+      .where('id', '=', messageId)
+      .execute();
+    message.status = 'unmatched';
+    message.reviewed_at = reviewedAt;
     const outcome = await this.apply(message, intent, 'admin');
     if (outcome !== 'matched') throw conflict('match_failed', { outcome });
     return await this.getMessage(messageId);
@@ -257,7 +390,7 @@ export class MatchService {
       .updateTable('sms_messages')
       .set({ status: 'ignored' })
       .where('id', '=', messageId)
-      .where('status', 'in', ['unmatched', 'not_receipt', 'untrusted_sender', 'stale'])
+      .where('status', 'in', ['unmatched', 'not_receipt', 'untrusted_sender', 'stale', 'held'])
       .executeTakeFirst();
     if (Number(result.numUpdatedRows ?? 0) === 0) {
       const row = await this.getMessage(messageId);

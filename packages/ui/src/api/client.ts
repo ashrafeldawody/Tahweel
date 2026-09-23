@@ -126,6 +126,7 @@ export const api = {
     list: (params: MessageListParams) => request<Page<Message>>('GET', `/admin/messages${buildQuery(params)}`),
     get: (id: string) => request<MessageWithIntent>('GET', `/admin/messages/${encode(id)}`),
     match: (id: string, intentId: string) => request<Message>('POST', `/admin/messages/${encode(id)}/match`, { intent_id: intentId }),
+    approve: (id: string) => request<Message>('POST', `/admin/messages/${encode(id)}/approve`),
     ignore: (id: string) => request<Message>('POST', `/admin/messages/${encode(id)}/ignore`),
     reopen: (id: string) => request<Message>('POST', `/admin/messages/${encode(id)}/reopen`),
     retrust: (id: string) => request<Message>('POST', `/admin/messages/${encode(id)}/retrust`),

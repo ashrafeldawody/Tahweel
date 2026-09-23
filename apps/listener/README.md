@@ -1,6 +1,6 @@
 # Tahweel Listener
 
-A small Android app that runs on a spare phone holding the SIM card that receives mobile-wallet SMS receipts. Every incoming SMS is queued in a local SQLite database and forwarded to your own Tahweel server (`POST /ingest/sms`), which parses it and confirms the matching payment. A heartbeat (`POST /ingest/heartbeat`) every 60 seconds lets the server show the phone's battery, network and queue depth.
+A small Android app that runs on a spare phone holding the SIM card that receives mobile-wallet SMS receipts. SMS from the trusted wallet sender ids, and any SMS that mentions money, are queued in a local SQLite database and forwarded to your own Tahweel server (`POST /ingest/sms`), which parses them and confirms the matching payment. Everything else stays on the phone; the server sends the rules with every heartbeat (see [docs/listener.md](../../docs/listener.md#what-the-phone-forwards)). A heartbeat (`POST /ingest/heartbeat`) every 60 seconds lets the server show the phone's battery, network and queue depth.
 
 Nothing leaves the phone except to the server URL you configure. There is no third-party service.
 

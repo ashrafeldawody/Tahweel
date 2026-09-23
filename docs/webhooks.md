@@ -58,7 +58,10 @@ Every payload also carries `id` (delivery id, use it for idempotency), `event` a
     "intent_id": "7c1d0f3e-...",
     "matched_at": "2026-09-13T10:15:31.190Z",
     "matched_by": "auto",
-    "note": null
+    "note": null,
+    "verification": "verified",
+    "expected_balance_cents": 42990,
+    "reviewed_at": null
   }
 }
 ```

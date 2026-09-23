@@ -33,6 +33,9 @@ export interface SmsMessagesTable {
   matched_at: string | null;
   matched_by: MatchedBy | null;
   note: string | null;
+  verification: Verification | null;
+  expected_balance_cents: number | null;
+  reviewed_at: string | null;
 }
 
 export interface PaymentIntentsTable {
@@ -98,6 +101,7 @@ export const MESSAGE_STATUSES = [
   'not_receipt',
   'untrusted_sender',
   'stale',
+  'held',
 ] as const;
 export type MessageStatus = (typeof MESSAGE_STATUSES)[number];
 
@@ -117,3 +121,9 @@ export const WEBHOOK_EVENTS = [
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 
 export type MatchedBy = 'auto' | 'admin';
+
+export const VERIFICATIONS = ['verified', 'mismatch', 'no_balance', 'no_history'] as const;
+export type Verification = (typeof VERIFICATIONS)[number];
+
+export const HOLD_REASONS = ['balance_mismatch', 'no_balance', 'no_balance_history', 'above_review_limit'] as const;
+export type HoldReason = (typeof HOLD_REASONS)[number];

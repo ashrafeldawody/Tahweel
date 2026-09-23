@@ -25,6 +25,10 @@ interface SettingsFormState {
   offline_alert_minutes: string | number;
   webhook_unmatched_receipts: boolean;
   email_alerts: boolean;
+  verify_balance: boolean;
+  balance_margin: string | number;
+  review_above_amount: string | number;
+  phone_filter: boolean;
   webhook_url: string;
   webhook_secret: string;
   webhook_secret_set: boolean;
@@ -41,6 +45,10 @@ function toFormState(settings: Settings): SettingsFormState {
     offline_alert_minutes: settings.offline_alert_minutes,
     webhook_unmatched_receipts: settings.webhook_unmatched_receipts,
     email_alerts: settings.email_alerts,
+    verify_balance: settings.verify_balance,
+    balance_margin: settings.balance_margin,
+    review_above_amount: settings.review_above_amount ?? '',
+    phone_filter: settings.phone_filter,
     webhook_url: settings.webhook_url ?? '',
     webhook_secret: '',
     webhook_secret_set: settings.webhook_secret_set,
@@ -89,6 +97,14 @@ function toPatch(form: SettingsFormState): PatchResult {
   for (const [key, value] of Object.entries(numbers)) {
     if (!Number.isInteger(value) || value <= 0) return { ok: false, error: `${key.replace(/_/g, ' ')} must be a positive whole number` };
   }
+  const balanceMargin = Number(form.balance_margin);
+  if (!Number.isFinite(balanceMargin) || balanceMargin < 0 || Math.abs(Math.round(balanceMargin * 100) - balanceMargin * 100) > 1e-6) {
+    return { ok: false, error: 'Balance margin must be 0 or more, in steps of 0.01' };
+  }
+  const reviewLimit = form.review_above_amount === '' ? null : Number(form.review_above_amount);
+  if (reviewLimit !== null && (!Number.isFinite(reviewLimit) || reviewLimit <= 0)) {
+    return { ok: false, error: 'Review limit must be a positive amount, or empty to turn it off' };
+  }
   const webhook = toWebhookPatch(form);
   if (!webhook.ok) return webhook;
   return {
@@ -100,6 +116,10 @@ function toPatch(form: SettingsFormState): PatchResult {
       auto_match: form.auto_match,
       webhook_unmatched_receipts: form.webhook_unmatched_receipts,
       email_alerts: form.email_alerts,
+      verify_balance: form.verify_balance,
+      balance_margin: balanceMargin,
+      review_above_amount: reviewLimit,
+      phone_filter: form.phone_filter,
       ...numbers,
       ...webhook.patch,
     },
@@ -129,7 +149,7 @@ function ReconcileCard() {
         <div>
           <Title order={5}>Matching</Title>
           <Text size="sm" c="dimmed">
-            Re-trusts messages whose sender id is now allowed, expires old intents, demotes stale receipts and matches everything unmatched.
+            Re-trusts messages whose sender id is now allowed, expires old intents, demotes stale receipts, releases held receipts that now pass the checks and matches everything unmatched.
           </Text>
         </div>
         <Group>
@@ -143,6 +163,7 @@ function ReconcileCard() {
               <Text size="sm">Re-trusted: {summary.retrusted}</Text>
               <Text size="sm">Expired intents: {summary.expired_intents}</Text>
               <Text size="sm">Demoted stale: {summary.demoted_stale}</Text>
+              <Text size="sm">Released: {summary.released}</Text>
               <Text size="sm" fw={600}>
                 Matched: {summary.matched}
               </Text>
@@ -297,6 +318,38 @@ export function SettingsPage() {
                     checked={form.auto_match}
                     onChange={(event) => update('auto_match', event.currentTarget.checked)}
                   />
+                  <Divider label="Fake SMS protection" labelPosition="left" />
+                  <Switch
+                    label="Verify the wallet balance"
+                    description="A receipt matches automatically only when its balance equals the last confirmed balance plus the amount. Anything else is held until you approve it."
+                    checked={form.verify_balance}
+                    onChange={(event) => update('verify_balance', event.currentTarget.checked)}
+                  />
+                  <NumberInput
+                    label={`Balance margin (${form.currency || 'EGP'})`}
+                    description="Allowed difference between the expected and the stated balance, for operator rounding"
+                    min={0}
+                    allowNegative={false}
+                    decimalScale={2}
+                    step={0.01}
+                    disabled={!form.verify_balance}
+                    value={form.balance_margin}
+                    onChange={(value) => update('balance_margin', value)}
+                  />
+                  <NumberInput
+                    label={`Review receipts above (${form.currency || 'EGP'})`}
+                    description="Hold larger receipts until you confirm them in the wallet app and approve them, even when the balance adds up. Leave empty to turn off."
+                    min={0}
+                    allowNegative={false}
+                    value={form.review_above_amount}
+                    onChange={(value) => update('review_above_amount', value)}
+                  />
+                  <Switch
+                    label="Filter SMS on the phone"
+                    description="Listener phones forward only trusted senders and SMS that mention money; OTPs and personal texts stay on the phone."
+                    checked={form.phone_filter}
+                    onChange={(event) => update('phone_filter', event.currentTarget.checked)}
+                  />
                   <Divider label="Webhook" labelPosition="left" />
                   <TextInput
                     label="Webhook URL"
@@ -330,7 +383,7 @@ export function SettingsPage() {
                   />
                   <Switch
                     label="Email alerts"
-                    description="Offline phones and unmatched receipts by mail (needs SMTP on the server)"
+                    description="Offline phones, unmatched and held receipts by mail (needs SMTP on the server)"
                     checked={form.email_alerts}
                     onChange={(event) => update('email_alerts', event.currentTarget.checked)}
                   />
