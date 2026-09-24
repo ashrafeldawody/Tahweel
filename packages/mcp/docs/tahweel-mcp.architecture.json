@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Tahweel Mobile Wallet Gateway & MCP Architecture",
+    "output": "tahweel-mcp-architecture.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "full-flow",
+        "label": "End-to-End Payment Flow",
+        "focus": ["customer", "carrier", "listener", "tunnel", "tahweel_core", "tahweel_db", "mcp_server", "agents"],
+        "note": "Complete cycle: AI intent creation, customer mobile transfer, SMS ingestion, and autonomous settlement."
+      }
+    ]
+  },
+  "components": [
+    { "id": "agents", "type": "frontend", "label": "AI Agents", "sublabel": "Claude / Cursor / Office", "pos": [50, 160], "size": [140, 60] },
+    { "id": "mcp_server", "type": "backend", "label": "Tahweel MCP", "sublabel": "@tahweel/mcp stdio", "pos": [270, 160], "size": [140, 60], "tag": "MCP 2024-11-05" },
+    { "id": "tahweel_core", "type": "backend", "label": "Tahweel Gateway", "sublabel": "Node.js / Kysely :3000", "pos": [500, 160], "size": [140, 60] },
+    { "id": "tahweel_db", "type": "database", "label": "SQLite Store", "sublabel": "data/tahweel.sqlite", "pos": [500, 310], "size": [140, 60] },
+    { "id": "tunnel", "type": "cloud", "label": "Cloudflare Tunnel", "sublabel": "HTTPS Edge Ingress", "pos": [730, 160], "size": [140, 60], "tag": "Auto-SSL" },
+    { "id": "listener", "type": "backend", "label": "Android Listener", "sublabel": "Dedicated Wallet Device", "pos": [960, 160], "size": [140, 60], "tag": "RECEIVE_SMS" },
+    { "id": "carrier", "type": "external", "label": "Telecom Network", "sublabel": "Vodafone / Orange / e&", "pos": [960, 310], "size": [140, 60] },
+    { "id": "customer", "type": "external", "label": "Customer Wallet", "sublabel": "USSD / Mobile App", "pos": [730, 310], "size": [140, 60] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Host Environment (Server / Workstation)", "wraps": ["mcp_server", "tahweel_core", "tahweel_db"] }
+  ],
+  "connections": [
+    { "id": "agent-to-mcp", "from": "agents", "to": "mcp_server", "label": "JSON-RPC", "variant": "emphasis" },
+    { "id": "mcp-to-core", "from": "mcp_server", "to": "tahweel_core", "label": "Integrator API" },
+    { "id": "core-to-db", "from": "tahweel_core", "to": "tahweel_db", "label": "Persistence", "labelDy": 24 },
+    { "id": "tunnel-to-core", "from": "tunnel", "to": "tahweel_core", "label": "Reverse Proxy" },
+    { "id": "listener-to-tunnel", "from": "listener", "to": "tunnel", "label": "HTTPS POST", "variant": "security" },
+    { "id": "carrier-to-listener", "from": "carrier", "to": "listener", "label": "Operator SMS" },
+    { "id": "customer-to-carrier", "from": "customer", "to": "carrier", "label": "P2P Transfer", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Agent Checkout & Intent",
+      "items": [
+        "AI Agent calls create_payment_intent with order reference and customer phone",
+        "Tahweel registers expected amount and reserves reference"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Hardware SMS Ingestion",
+      "items": [
+        "Customer transfers EGP via Vodafone Cash, e& money, or Orange Cash",
+        "Android phone intercepts carrier SMS receipt and pushes via Cloudflare Tunnel"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Autonomous Verification",
+      "items": [
+        "Tahweel matches intent against verified operator sender ID",
+        "AI Agent queries get_payment_intent and unlocks fulfillment instantly"
+      ]
+    }
+  ]
+}

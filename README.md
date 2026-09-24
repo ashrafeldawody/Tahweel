@@ -9,6 +9,7 @@ Personal wallets such as Vodafone Cash, e& money or Orange Cash have no merchant
 - **Dashboard.** Devices, every forwarded SMS with its verdict, intents, webhook deliveries, settings, manual matching.
 - **Fake SMS protection.** Anyone can send an SMS that pretends to come from `vf-cash`. Optionally, a receipt only matches when its wallet balance adds up, and receipts above an amount you choose wait until you confirm them in the wallet app. See [Security](docs/security.md#fake-sms).
 - **New wallets are one file.** A parser plus sample messages.
+- **Model Context Protocol (MCP).** Connect AI agents (Claude Code, Cursor, Windsurf) directly to your gateway via `@tahweel/mcp` ([packages/mcp](packages/mcp)).
 
 ```
 customer pays 200 EGP ──▶ operator SMS ──▶ Listener phone ──▶ Tahweel server ──▶ webhook ──▶ your system
